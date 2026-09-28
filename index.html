@@ -1,0 +1,1155 @@
+Berikut adalah berkas `v13.html` yang telah diperbarui dengan mengganti fungsi `fetchMarketSeries` menggunakan URL backend Vercel resmi Anda (`[https://stepm-idx-backend.vercel.app/api/chart](https://stepm-idx-backend.vercel.app/api/chart)`).
+
+### Kode `v13.html` Terbaru:
+
+```html
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STEPM-IDX v4.0 — Mesin Perdagangan Kuantitatif IHSG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        idx: {
+                            dark: '#090d16',
+                            card: '#0f172a',
+                            border: '#1e293b',
+                            accent: '#3b82f6',
+                            bull: '#10b981',
+                            bear: '#ef4444',
+                            warn: '#f59e0b'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,600;0,800;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #090d16;
+            color: #f8fafc;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Custom scrollbar styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white">
+
+    <!-- Top Navigation & Global Header -->
+    <header class="bg-slate-900/90 border-b border-slate-800 sticky top-0 z-50 backdrop-blur-md px-4 py-2.5">
+        <div class="max-w-[1800px] mx-auto flex flex-wrap items-center justify-between gap-4">
+            
+            <!-- Brand & Engine Architecture Identifier -->
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-tr from-emerald-600 via-teal-600 to-blue-600 p-2.5 rounded-xl shadow-lg shadow-emerald-500/20">
+                    <i data-lucide="dollar-sign" class="w-6 h-6 text-white font-black"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="font-black text-xl tracking-wider text-white">STEPM-IDX</span>
+                        <span class="text-[10px] uppercase tracking-widest font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">v4.0 Engine</span>
+                        <span id="dataModeBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">● DATA: MENUNGGU FEED</span>
+                    </div>
+                    <p class="text-xs text-slate-400">Model Probabilitas Empiris & Manajemen Risiko Saham Jangka Pendek (BEI)</p>
+                </div>
+            </div>
+
+            <!-- Global Market Status Badge -->
+            <div class="flex items-center space-x-3">
+                <div class="bg-slate-950/80 px-3.5 py-1.5 rounded-xl border border-slate-800 flex items-center space-x-2 text-xs font-mono">
+                    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+                    <span class="text-emerald-400 font-bold">Status Pasar (IHSG > MA20 - Risk On)</span>
+                </div>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- Main View Switcher Tabs -->
+    <div class="max-w-[1800px] w-full mx-auto px-4 pt-4">
+        <div class="flex space-x-2 border-b border-slate-800 pb-2">
+            <button id="tabCalculator" onclick="switchTab('calculator')" class="flex items-center space-x-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+                <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                <span>Kalkulator Saham Live & Fetcher Otomatis</span>
+            </button>
+            <button id="tabScreener" onclick="switchTab('screener')" class="flex items-center space-x-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition bg-slate-800/80 text-slate-400 hover:text-white border border-slate-700/60">
+                <i data-lucide="list-filter" class="w-4 h-4 text-emerald-400"></i>
+                <span>Live Auto-Screener (Scan Seluruh Saham IDX)</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD CONTENT -->
+    <main class="flex-1 max-w-[1800px] w-full mx-auto p-4">
+
+        <!-- VIEW 1: LIVE AUTO-SCREENER TABLE -->
+        <section id="screenerView" class="hidden flex flex-col space-y-4">
+            
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                <!-- Screener Header & Controls Bar -->
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="activity" class="w-5 h-5 text-emerald-400"></i>
+                        <h2 class="text-sm font-extrabold uppercase text-white tracking-wider">HASIL SCREENER SAHAM IDX (VALIDATED MARKET DATA ENGINE)</h2>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <!-- Search Box -->
+                        <div class="relative">
+                            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-500"></i>
+                            <input id="screenerSearch" type="text" placeholder="Cari Saham (e.g. CUAN, BBRI)" oninput="filterScreenerTable()" class="bg-slate-950 text-slate-200 text-xs font-mono pl-9 pr-3 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500 w-64">
+                        </div>
+
+                        <!-- Run Auto-Scanner Button -->
+                        <button id="btnRunScanner" onclick="runAutoScanner()" class="flex items-center space-x-2 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition active:scale-95 shadow-lg shadow-emerald-600/20">
+                            <i data-lucide="zap" class="w-4 h-4" id="scannerZapIcon"></i>
+                            <span id="scannerBtnText">JALANKAN LIVE AUTO-SCANNER IHSG</span>
+                        </button>
+
+                        <!-- Status Filter Dropdown -->
+                        <select id="statusFilter" onchange="filterScreenerTable()" class="bg-slate-950 text-slate-300 text-xs font-mono font-bold px-3 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500">
+                            <option value="ALL">Tampilkan Semua Status</option>
+                            <option value="PASS">HANYA SIAP (PASS)</option>
+                            <option value="WAIT">HANYA TUNGGU (WAIT)</option>
+                            <option value="BLOCK">HANYA BLOKIR (BLOCK)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <p class="text-xs text-slate-400 font-mono mb-4 border-b border-slate-800/80 pb-3">
+                    Data harga diambil dari feed eksternal yang tersedia. TradingView dapat berbeda karena sumber/feed, timestamp, dan adjustment berbeda.
+                </p>
+
+                <!-- Screener Table -->
+                <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
+                    <table class="w-full text-left border-collapse text-xs font-mono">
+                        <thead>
+                            <tr class="bg-slate-900/90 text-slate-400 font-bold border-b border-slate-800 uppercase tracking-wider text-[11px]">
+                                <th class="p-3.5">KODE SAHAM</th>
+                                <th class="p-3.5">HARGA / DATA</th>
+                                <th class="p-3.5">TURNOVER (20D)</th>
+                                <th class="p-3.5">HARD FILTERS</th>
+                                <th class="p-3.5">COMPOSITE SCORE</th>
+                                <th class="p-3.5">P(WIN)</th>
+                                <th class="p-3.5">STATUS SINYAL</th>
+                                <th class="p-3.5">SIZING LOT (RP50M)</th>
+                                <th class="p-3.5 text-center">AKSI</th>
+                            </tr>
+                        </thead>
+                        <tbody id="screenerTableBody" class="divide-y divide-slate-800/60 text-slate-200">
+                            <!-- JS populated rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- VIEW 2: DETAILED CALCULATOR & ENGINE DESK -->
+        <section id="calculatorView" class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            
+            <!-- LEFT COLUMN: Market Data, Canvas Chart, Canonical Features (5 cols) -->
+            <div class="lg:col-span-5 flex flex-col space-y-4">
+                
+                <!-- Stock Picker & Realtime Header Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+                    
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3 pb-3 border-b border-slate-800">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs text-slate-400 font-bold">PILIH SAHAM:</span>
+                            <select id="tickerSelect" onchange="updateStockDesk()" class="bg-slate-950 text-white font-extrabold text-sm rounded-xl px-3 py-1.5 border border-slate-700 focus:outline-none focus:border-blue-500 transition">
+                                <!-- Populated dynamically from STOCKS database -->
+                            </select>
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs text-slate-400 font-medium">KERANGKA WAKTU:</span>
+                            <select id="timeframeSelect" onchange="updateStockDesk()" class="bg-slate-950 text-white font-semibold text-xs rounded-xl px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-blue-500 transition">
+                                <option value="1m">1m</option>
+                                <option value="5m" selected>5m</option>
+                                <option value="15m">15m</option>
+                                <option value="1H">1H</option>
+                                <option value="1D">1D</option>
+                            </select>
+
+                            <button id="btnRefresh" onclick="refreshData()" class="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 shadow-lg shadow-blue-600/20">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="refreshSpinner"></i>
+                                <span>AMBIL DATA</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="flex items-baseline space-x-2">
+                                <h1 id="stockSymbol" class="text-3xl font-black text-white tracking-wider">BBRI</h1>
+                                <span id="stockName" class="text-xs text-slate-400 font-medium">Bank Rakyat Indonesia Tbk</span>
+                            </div>
+                            <div class="flex items-baseline space-x-3 mt-1.5">
+                                <span id="lastPrice" class="text-3xl font-black text-emerald-400 mono">4,850</span>
+                                <span id="priceChange" class="text-sm font-semibold text-emerald-400 mono">+120 (+2.54%)</span>
+                            </div>
+                        </div>
+                        <div class="text-right text-xs text-slate-400 mono space-y-0.5">
+                            <div>SEBELUM: <span id="prevClose" class="text-slate-200 font-semibold">4,730</span></div>
+                            <div>TERTINGGI: <span id="highPrice" class="text-slate-200 font-semibold">4,880</span></div>
+                            <div>TERENDAH: <span id="lowPrice" class="text-slate-200 font-semibold">4,720</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Secondary Tape Metrics Grid -->
+                    <div class="grid grid-cols-4 gap-2 mt-4 pt-3 border-t border-slate-800/80 text-xs text-center mono">
+                        <div class="bg-slate-950/60 p-2 rounded-xl border border-slate-800/60">
+                            <div class="text-[10px] text-slate-500">VOL (LEMBAR)</div>
+                            <div id="volShares" class="font-bold text-slate-200 mt-0.5">85.4M</div>
+                        </div>
+                        <div class="bg-slate-950/60 p-2 rounded-xl border border-slate-800/60">
+                            <div class="text-[10px] text-slate-500">NILAI (RUPIAH)</div>
+                            <div id="valTraded" class="font-bold text-slate-200 mt-0.5">412.8B</div>
+                        </div>
+                        <div class="bg-slate-950/60 p-2 rounded-xl border border-slate-800/60">
+                            <div class="text-[10px] text-slate-500">NET ASING</div>
+                            <div id="foreignNet" class="font-bold text-emerald-400 mt-0.5">+48.2B</div>
+                        </div>
+                        <div class="bg-slate-950/60 p-2 rounded-xl border border-slate-800/60">
+                            <div class="text-[10px] text-slate-500">NET BROKER</div>
+                            <div id="brokerNet" class="font-bold text-emerald-400 mt-0.5">AKUM (BK, KZ)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Candlestick & Volume Canvas Chart -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col">
+                    <div class="flex justify-between items-center mb-2.5">
+                        <span class="text-xs font-bold uppercase text-slate-300 tracking-wider flex items-center space-x-1.5">
+                            <i data-lucide="candlestick-chart" class="w-4 h-4 text-blue-400"></i>
+                            <span>GRAFIK TEKNIKAL (OHLCV FEED)</span>
+                        </span>
+                        <div class="text-[10px] text-slate-400 font-mono">MA20 (Biru) | MA50 (Jingga)</div>
+                    </div>
+                    <div class="relative w-full h-[260px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
+                        <canvas id="priceCanvas" class="w-full h-full block"></canvas>
+                    </div>
+                </div>
+
+                <!-- Derived Technical Features & Microstructure Grid -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm">
+                    <h2 class="text-xs font-bold uppercase text-slate-300 tracking-wider mb-3 flex items-center space-x-1.5">
+                        <i data-lucide="cpu" class="w-4 h-4 text-emerald-400"></i>
+                        <span>FITUR MESIN KALKULASI TEKNIKAL & MIKROSTRUKTUR</span>
+                    </h2>
+                    
+                    <div class="grid grid-cols-3 gap-2.5 text-xs font-mono">
+                        <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-500 block">RSI (14)</span>
+                            <span id="valRSI" class="font-extrabold text-blue-400 text-sm">64.2</span>
+                            <span id="rsiZone" class="text-[9px] text-emerald-400 block mt-0.5">MOMENTUM BULLISH</span>
+                        </div>
+
+                        <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-500 block">MACD (12,26,9)</span>
+                            <span id="valMACD" class="font-extrabold text-emerald-400 text-sm">+18.4</span>
+                            <span id="macdStatus" class="text-[9px] text-emerald-400 block mt-0.5">HISTOGRAM MEMBESAR</span>
+                        </div>
+
+                        <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-500 block">ATR (14)</span>
+                            <span id="valATR" class="font-extrabold text-slate-200 text-sm">85.0</span>
+                            <span class="text-[9px] text-slate-400 block mt-0.5">VOLATILITAS: NORMAL</span>
+                        </div>
+
+                        <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-500 block">RVOL (REL VOL)</span>
+                            <span id="valRVOL" class="font-extrabold text-amber-400 text-sm">2.4x</span>
+                            <span class="text-[9px] text-amber-400 block mt-0.5">LONJAKAN TINGGI</span>
+                        </div>
+
+                        <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-500 block">VWAP</span>
+                            <span id="valVWAP" class="font-extrabold text-purple-400 text-sm">4,810</span>
+                            <span class="text-[9px] text-emerald-400 block mt-0.5">HARGA > VWAP (+0.8%)</span>
+                        </div>
+
+                        <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-500 block">ORDERBOOK IMBALANCE</span>
+                            <span id="valOBImbalance" class="font-extrabold text-emerald-400 text-sm">+0.38</span>
+                            <span class="text-[9px] text-emerald-400 block mt-0.5">TEKANAN BID 69%</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- MIDDLE COLUMN: Confluence Scoring Matrix & Probability Engine (4 cols) -->
+            <div class="lg:col-span-4 flex flex-col space-y-4">
+                
+                <!-- Confluence Engine & Factor Matrix -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm flex-1 flex flex-col">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-xs font-bold uppercase text-slate-300 tracking-wider flex items-center space-x-1.5">
+                            <i data-lucide="layers" class="w-4 h-4 text-amber-400"></i>
+                            <span>MATRIKS KONFLUENSI & SKOR FAKTOR</span>
+                        </span>
+                        <span class="text-[10px] font-mono text-slate-400">PENALTI KORELASI: AKTIF</span>
+                    </div>
+
+                    <!-- Confluence Progress Meter -->
+                    <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 mb-4 text-center">
+                        <div class="text-[10px] text-slate-400 font-mono tracking-wider uppercase">SKOR KONFLUENSI BERSIH</div>
+                        <div class="flex justify-center items-baseline space-x-2 mt-1">
+                            <span id="confluenceScore" class="text-4xl font-black text-emerald-400 mono">+78</span>
+                            <span class="text-slate-500 text-xs font-mono">/ 100</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden mt-2">
+                            <div id="confluenceBar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 89%;"></div>
+                        </div>
+                        <div id="confluenceStatus" class="text-xs font-bold text-emerald-400 mt-2 uppercase tracking-wide">
+                            ALINEA POSITIF SANGAT KUAT
+                        </div>
+                    </div>
+
+                    <!-- Evidence Breakdown Lists -->
+                    <div class="grid grid-cols-2 gap-3 text-xs mb-4">
+                        <div class="bg-emerald-950/20 border border-emerald-800/40 p-2.5 rounded-xl">
+                            <div class="font-bold text-emerald-400 mb-1.5 flex items-center space-x-1">
+                                <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                                <span>BUKTI TERKONFIRMASI</span>
+                            </div>
+                            <ul id="positiveEvidence" class="space-y-1 text-[11px] text-emerald-200/80 font-mono">
+                                <li>✓ Harga > MA20 & MA50</li>
+                                <li>✓ RVOL Lonjakan 2.4x</li>
+                                <li>✓ Akumulasi Asing Konsisten</li>
+                                <li>✓ Struktur Pasar Bullish</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-rose-950/20 border border-rose-800/40 p-2.5 rounded-xl">
+                            <div class="font-bold text-rose-400 mb-1.5 flex items-center space-x-1">
+                                <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+                                <span>FAKTOR NEGATIF / KONFLIK</span>
+                            </div>
+                            <ul id="negativeEvidence" class="space-y-1 text-[11px] text-rose-200/80 font-mono">
+                                <li>⚠ Resisten dekat (4,880)</li>
+                                <li>⚠ Divergens Sektor (-0.2%)</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 15-Factor Matrix Table -->
+                    <div class="flex-1 bg-slate-950 rounded-xl border border-slate-800 overflow-hidden text-xs font-mono">
+                        <div class="px-3 py-2 bg-slate-800/50 text-[10px] text-slate-400 font-bold grid grid-cols-12 gap-1 border-b border-slate-800">
+                            <span class="col-span-5">GRUP FAKTOR</span>
+                            <span class="col-span-4 text-center">STATUS</span>
+                            <span class="col-span-3 text-right">SKOR BOBOT</span>
+                        </div>
+                        <div class="divide-y divide-slate-800/60 overflow-y-auto max-h-[180px]" id="factorMatrix">
+                            <!-- Factor Rows Dynamic -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Historical Probability & Calibration Engine -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-xs font-bold uppercase text-slate-300 tracking-wider flex items-center space-x-1.5">
+                            <i data-lucide="calculator" class="w-4 h-4 text-indigo-400"></i>
+                            <span>MESIN PROBABILITAS HISTORIS & KALIBRASI</span>
+                        </span>
+                        <span id="probStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono font-bold">BELUM TERVALIDASI</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 font-mono text-xs mb-3">
+                        <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-500 block">DEFINISI TARGET</span>
+                            <span class="font-bold text-slate-200">Target +2.5% dlm 3 Hari</span>
+                        </div>
+                        <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                            <span class="text-[10px] text-slate-500 block">SAMPEL HISTORIS (N)</span>
+                            <span id="sampleSize" class="font-bold text-indigo-400">486 Setup Sebanding</span>
+                        </div>
+                    </div>
+
+                    <!-- Probability & Wilson Confidence Interval -->
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5">
+                        <div class="flex justify-between items-center text-xs font-mono">
+                            <span class="text-slate-400">TANGKAPAN EMPIRIS (WIN RATE):</span>
+                            <span id="probPercent" class="text-xl font-extrabold text-emerald-400">64.2%</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[11px] font-mono text-slate-500">
+                            <span>RENTANG KEPERCAYAAN 95% (WILSON):</span>
+                            <span id="probCI" class="text-slate-300 font-semibold">[59.8% – 68.4%]</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[11px] font-mono text-slate-500 pt-1 border-t border-slate-800/80">
+                            <span>SKOR BRIER KALIBRASI MODEL:</span>
+                            <span class="text-slate-300">0.168 (VALID)</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT COLUMN: Risk Management Engine, Position Calculator & AI Analyst (3 cols) -->
+            <div class="lg:col-span-3 flex flex-col space-y-4">
+                
+                <!-- Risk Engine & Trade Plan -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold uppercase text-slate-300 tracking-wider flex items-center space-x-1.5">
+                            <i data-lucide="shield-alert" class="w-4 h-4 text-rose-400"></i>
+                            <span>MESIN MANAJEMEN RISIKO & POSISI</span>
+                        </span>
+                        <span id="signalGateBadge" class="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-mono">SIAP (PASS)</span>
+                    </div>
+
+                    <!-- User Account Risk Input Controls -->
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2 text-xs font-mono">
+                        <div class="flex justify-between items-center">
+                            <label class="text-slate-400">MODAL PORTOFOLIO:</label>
+                            <input id="inputCapital" type="number" value="50000000" step="5000000" class="w-28 bg-slate-900 text-white font-bold text-right px-2 py-1 rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500" oninput="updateRiskCalculations()">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <label class="text-slate-400">MAKS RISIKO / TRADE (%):</label>
+                            <input id="inputRiskPercent" type="number" value="1.0" step="0.1" max="5.0" min="0.1" class="w-28 bg-slate-900 text-white font-bold text-right px-2 py-1 rounded-lg border border-slate-700 focus:outline-none focus:border-blue-500" oninput="updateRiskCalculations()">
+                        </div>
+                    </div>
+
+                    <!-- Structured Entry, Invalidation, Target Levels -->
+                    <div class="space-y-2 font-mono text-xs">
+                        <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] text-slate-500 block">AREA ENTRY (BELI)</span>
+                                <span id="entryZone" class="font-bold text-blue-400">4,830 – 4,850</span>
+                            </div>
+                            <span class="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded-md">RETEST / BREAKOUT</span>
+                        </div>
+
+                        <div class="bg-slate-950 p-2.5 rounded-xl border border-rose-900/40 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] text-slate-500 block">STOP LOSS STRUKTURAL</span>
+                                <span id="valStopLoss" class="font-bold text-rose-400">4,710 (-2.89%)</span>
+                            </div>
+                            <span class="text-[10px] text-rose-400 font-bold">SWING LOW</span>
+                        </div>
+
+                        <div class="bg-slate-950 p-2.5 rounded-xl border border-emerald-900/40 space-y-1">
+                            <div class="text-[10px] text-slate-500">TARGET TAKE PROFIT</div>
+                            <div class="flex justify-between text-[11px]">
+                                <span>TP1 (Konservatif): <strong id="valTP1" class="text-emerald-400">4,980</strong></span>
+                                <span class="text-slate-400">RR 1:1.2</span>
+                            </div>
+                            <div class="flex justify-between text-[11px]">
+                                <span>TP2 (Target Utama): <strong id="valTP2" class="text-emerald-400">5,100</strong></span>
+                                <span class="text-slate-400">RR 1:1.8</span>
+                            </div>
+                            <div class="flex justify-between text-[11px]">
+                                <span>TP3 (Ekspansi): <strong id="valTP3" class="text-emerald-400">5,250</strong></span>
+                                <span class="text-slate-400">RR 1:2.8</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- IDX Position Sizing Output -->
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs space-y-1.5">
+                        <div class="flex justify-between text-slate-400">
+                            <span>ANGGARAN RISIKO:</span>
+                            <span id="riskBudget" class="text-slate-200 font-bold">Rp 500,000</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>ALOKASI POSISI LOT:</span>
+                            <span id="recLots" class="text-amber-400 font-black text-sm">35 LOTS</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>MODAL DIBUTUHKAN:</span>
+                            <span id="capitalReq" class="text-slate-200 font-bold">Rp 16,975,000 (34.0%)</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400 pt-1 border-t border-slate-800">
+                            <span>NILAI HARAPAN BERSIH (EV):</span>
+                            <span id="netEV" class="text-emerald-400 font-black">+Rp 206,250 / Trade</span>
+                        </div>
+                    </div>
+
+                    <!-- Invalidation Conditions -->
+                    <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-[11px] font-mono space-y-1">
+                        <div class="text-slate-400 font-bold">SYARAT INVALIDASI SETUP:</div>
+                        <p class="text-slate-300">● Harga ditutup di bawah <span id="invStopLoss">4,710</span> dengan volume tinggi.</p>
+                        <p class="text-slate-300">● Net Asing berbalik minus > Rp 20 Miliar.</p>
+                    </div>
+
+                </div>
+
+                <!-- AI Analyst & Decision Layer Output Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold uppercase text-slate-300 tracking-wider flex items-center space-x-1.5">
+                            <i data-lucide="brain-circuit" class="w-4 h-4 text-purple-400"></i>
+                            <span>SINTESIS KEPUTUSAN ANALIS AI</span>
+                        </span>
+                        <span class="text-[10px] text-slate-400 font-mono">NON-PROFETIK</span>
+                    </div>
+                    <div id="aiSynthesisText" class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono text-slate-300 space-y-2 leading-relaxed">
+                        <!-- Dynamic AI Text -->
+                    </div>
+                </div>
+
+                <!-- Audit Trail & JSON Pipeline Button -->
+                <button id="btnAuditModal" onclick="openAuditModal()" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 py-2.5 rounded-2xl font-mono text-xs font-bold transition flex items-center justify-center space-x-2 active:scale-95">
+                    <i data-lucide="file-json" class="w-4 h-4 text-blue-400"></i>
+                    <span>INSPEKSI KONTRAK DATA & SILSILAH</span>
+                </button>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Modal: Data Contract & Audit Trail Inspector -->
+    <div id="auditModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-3xl w-full p-6 shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center pb-4 border-b border-slate-800">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="shield-check" class="w-5 h-5 text-emerald-400"></i>
+                    <h3 class="text-base font-bold text-white uppercase tracking-wider">KONTRAK DATA KANONIK & SILSILAH PIPELINE</h3>
+                </div>
+                <button onclick="closeAuditModal()" class="text-slate-400 hover:text-white transition p-1 rounded-lg hover:bg-slate-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto my-4 bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs">
+                <pre id="jsonPayload" class="text-emerald-400/90 whitespace-pre-wrap selection:bg-emerald-900 selection:text-white"></pre>
+            </div>
+
+            <div class="flex justify-between items-center pt-2 text-xs text-slate-400 font-mono">
+                <span>Versi Kontrak: v4.0.0</span>
+                <span>Aturan Emas: TANPA DATA VALID → TANPA SINYAL</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Data Engine & Interactive Controller -->
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Extended IDX Stock Database Model State (Comprehensive Stock List)
+        const STOCKS = {
+            'BBRI': { name: 'Bank Rakyat Indonesia Tbk', price: 4850, prev: 4730, high: 4880, low: 4720, volShares: '85.4M', valTraded: '412.8B', foreignNet: '+48.2B', rsi: 64.2, macd: '+18.4', atr: 85, rvol: 2.4, vwap: 4810, obImbalance: 0.38, confluence: 78, prob: 64.2, sample: 486, sl: 4710, tp1: 4980, tp2: 5100, tp3: 5250, hardFilters: 'Likuifitas OK, Spread OK, Normal', signal: 'PASS' },
+            'BBCA': { name: 'Bank Central Asia Tbk', price: 10150, prev: 10000, high: 10200, low: 9975, volShares: '42.1M', valTraded: '426.1B', foreignNet: '+82.5B', rsi: 68.5, macd: '+42.0', atr: 150, rvol: 1.8, vwap: 10080, obImbalance: 0.45, confluence: 84, prob: 68.0, sample: 520, sl: 9900, tp1: 10400, tp2: 10650, tp3: 11000, hardFilters: 'Likuifitas OK, Spread OK, Normal', signal: 'PASS' },
+            'BMRI': { name: 'Bank Mandiri (Persero) Tbk', price: 7100, prev: 7000, high: 7150, low: 6975, volShares: '51.3M', valTraded: '362.4B', foreignNet: '+31.1B', rsi: 59.8, macd: '+12.1', atr: 110, rvol: 1.5, vwap: 7060, obImbalance: 0.22, confluence: 65, prob: 58.5, sample: 390, sl: 6925, tp1: 7300, tp2: 7450, tp3: 7700, hardFilters: 'Likuifitas OK, Spread OK, Normal', signal: 'PASS' },
+            'BBNI': { name: 'Bank Negara Indonesia Tbk', price: 5450, prev: 5350, high: 5500, low: 5325, volShares: '38.2M', valTraded: '208.5B', foreignNet: '+18.4B', rsi: 61.2, macd: '+15.2', atr: 90, rvol: 1.6, vwap: 5420, obImbalance: 0.31, confluence: 70, prob: 61.0, sample: 410, sl: 5300, tp1: 5625, tp2: 5750, tp3: 5950, hardFilters: 'Likuifitas OK, Spread OK, Normal', signal: 'PASS' },
+            'TLKM': { name: 'Telkom Indonesia Tbk', price: 3020, prev: 3080, high: 3090, low: 3000, volShares: '98.2M', valTraded: '298.0B', foreignNet: '-24.8B', rsi: 41.2, macd: '-14.2', atr: 55, rvol: 0.9, vwap: 3040, obImbalance: -0.28, confluence: -35, prob: 38.0, sample: 310, sl: 2950, tp1: 3120, tp2: 3200, tp3: 3300, hardFilters: 'Net Asing Negatif, Tren Melemah', signal: 'BLOCK' },
+            'ASII': { name: 'Astra International Tbk', price: 5125, prev: 5100, high: 5175, low: 5075, volShares: '28.4M', valTraded: '145.2B', foreignNet: '-4.1B', rsi: 50.2, macd: '+2.1', atr: 80, rvol: 1.1, vwap: 5120, obImbalance: 0.05, confluence: 20, prob: 48.0, sample: 280, sl: 5000, tp1: 5250, tp2: 5400, tp3: 5600, hardFilters: 'Netral, Menunggu Breakout', signal: 'WAIT' },
+            'ANTM': { name: 'Aneka Tambang Tbk', price: 1540, prev: 1480, high: 1560, low: 1470, volShares: '142.0M', valTraded: '216.5B', foreignNet: '+15.4B', rsi: 72.1, macd: '+28.5', atr: 40, rvol: 3.1, vwap: 1520, obImbalance: 0.52, confluence: 88, prob: 71.5, sample: 610, sl: 1460, tp1: 1620, tp2: 1700, tp3: 1820, hardFilters: 'Volum Tinggi, Sentimen Komoditas OK', signal: 'PASS' },
+            'INCO': { name: 'Vale Indonesia Tbk', price: 3820, prev: 3750, high: 3860, low: 3730, volShares: '24.1M', valTraded: '92.1B', foreignNet: '+6.8B', rsi: 58.4, macd: '+9.2', atr: 75, rvol: 1.4, vwap: 3800, obImbalance: 0.24, confluence: 62, prob: 57.2, sample: 330, sl: 3700, tp1: 3950, tp2: 4100, tp3: 4250, hardFilters: 'Likuifitas OK, Trend Positif', signal: 'PASS' },
+            'PTBA': { name: 'Bukit Asam Tbk', price: 2680, prev: 2640, high: 2710, low: 2630, volShares: '31.5M', valTraded: '84.4B', foreignNet: '+4.2B', rsi: 56.1, macd: '+6.8', atr: 50, rvol: 1.3, vwap: 2670, obImbalance: 0.18, confluence: 58, prob: 55.4, sample: 290, sl: 2600, tp1: 2760, tp2: 2850, tp3: 2950, hardFilters: 'Deviden Yield Tinggi, Sideways', signal: 'WAIT' },
+            'ADRO': { name: 'Adaro Energy Indonesia Tbk', price: 3650, prev: 3580, high: 3690, low: 3560, volShares: '65.2M', valTraded: '238.0B', foreignNet: '+22.1B', rsi: 65.4, macd: '+21.0', atr: 65, rvol: 2.1, vwap: 3630, obImbalance: 0.41, confluence: 80, prob: 66.8, sample: 490, sl: 3520, tp1: 3780, tp2: 3900, tp3: 4050, hardFilters: 'Likuifitas OK, Akumulasi Kuat', signal: 'PASS' },
+            'GOTO': { name: 'GoTo Gojek Tokopedia Tbk', price: 68, prev: 65, high: 70, low: 65, volShares: '1.2B', valTraded: '81.6B', foreignNet: '+2.1B', rsi: 54.0, macd: '+1.2', atr: 3, rvol: 2.0, vwap: 67, obImbalance: 0.15, confluence: 45, prob: 52.0, sample: 240, sl: 63, tp1: 73, tp2: 78, tp3: 85, hardFilters: 'Saham Volatil, Likuifitas Ritel Tinggi', signal: 'WAIT' },
+            'BUKA': { name: 'Bukalapak.com Tbk', price: 124, prev: 122, high: 127, low: 121, volShares: '180.4M', valTraded: '22.3B', foreignNet: '-0.8B', rsi: 48.0, macd: '-0.5', atr: 4, rvol: 0.9, vwap: 123, obImbalance: -0.08, confluence: 15, prob: 46.0, sample: 180, sl: 118, tp1: 132, tp2: 140, tp3: 150, hardFilters: 'Volume Lemah, Sideways Bawah', signal: 'WAIT' },
+            'UNTR': { name: 'United Tractors Tbk', price: 26400, prev: 26000, high: 26650, low: 25900, volShares: '5.2M', valTraded: '137.2B', foreignNet: '+11.5B', rsi: 62.8, macd: '+112.0', atr: 450, rvol: 1.7, vwap: 26300, obImbalance: 0.35, confluence: 76, prob: 63.5, sample: 360, sl: 25700, tp1: 27200, tp2: 28000, tp3: 29500, hardFilters: 'Likuifitas Big-Cap OK', signal: 'PASS' },
+            'AMRT': { name: 'Sumber Alfaria Trijaya Tbk', price: 3120, prev: 3080, high: 3150, low: 3070, volShares: '18.9M', valTraded: '59.0B', foreignNet: '+5.4B', rsi: 59.1, macd: '+8.2', atr: 55, rvol: 1.2, vwap: 3110, obImbalance: 0.20, confluence: 60, prob: 56.0, sample: 260, sl: 3020, tp1: 3220, tp2: 3300, tp3: 3420, hardFilters: 'Tren Positif, Sektor Konsumer', signal: 'PASS' },
+            'ICBP': { name: 'Indofood CBP Sukses Makmur Tbk', price: 11800, prev: 11650, high: 11925, low: 11600, volShares: '8.4M', valTraded: '99.1B', foreignNet: '+12.0B', rsi: 66.2, macd: '+65.0', atr: 180, rvol: 1.6, vwap: 11750, obImbalance: 0.38, confluence: 81, prob: 67.2, sample: 420, sl: 11500, tp1: 12150, tp2: 12500, tp3: 13000, hardFilters: 'Defensif, Net Asing Beli', signal: 'PASS' },
+            'INDF': { name: 'Indofood Sukses Makmur Tbk', price: 7050, prev: 6975, high: 7125, low: 6950, volShares: '12.1M', valTraded: '85.3B', foreignNet: '+7.8B', rsi: 60.5, macd: '+22.0', atr: 100, rvol: 1.4, vwap: 7025, obImbalance: 0.25, confluence: 68, prob: 60.2, sample: 340, sl: 6900, tp1: 7250, tp2: 7450, tp3: 7700, hardFilters: 'Valuasi Murah, Tren Stabil', signal: 'PASS' },
+            'KLBF': { name: 'Kalbe Farma Tbk', price: 1680, prev: 1710, high: 1715, low: 1670, volShares: '32.1M', valTraded: '54.0B', foreignNet: '-3.2B', rsi: 44.5, macd: '-5.1', atr: 30, rvol: 0.8, vwap: 1690, obImbalance: -0.15, confluence: -20, prob: 41.0, sample: 220, sl: 1640, tp1: 1730, tp2: 1780, tp3: 1850, hardFilters: 'Tekanan Jual Jangka Pendek', signal: 'BLOCK' },
+            'CPIN': { name: 'Charoen Pokphand Indonesia Tbk', price: 5100, prev: 5050, high: 5175, low: 5025, volShares: '14.2M', valTraded: '72.4B', foreignNet: '+4.1B', rsi: 57.0, macd: '+11.0', atr: 90, rvol: 1.3, vwap: 5080, obImbalance: 0.18, confluence: 58, prob: 55.0, sample: 270, sl: 4950, tp1: 5250, tp2: 5400, tp3: 5600, hardFilters: 'Likuifitas OK, Rebound Support', signal: 'WAIT' },
+            'BRIS': { name: 'Bank Syariah Indonesia Tbk', price: 2980, prev: 2890, high: 3020, low: 2870, volShares: '74.5M', valTraded: '221.8B', foreignNet: '+28.4B', rsi: 74.5, macd: '+48.0', atr: 70, rvol: 2.8, vwap: 2950, obImbalance: 0.58, confluence: 90, prob: 73.2, sample: 580, sl: 2840, tp1: 3120, tp2: 3250, tp3: 3450, hardFilters: 'Breakout ATH, Akumulasi Sangat Kuat', signal: 'PASS' },
+            'MEDC': { name: 'Medco Energi Internasional Tbk', price: 1320, prev: 1280, high: 1340, low: 1275, volShares: '95.2M', valTraded: '125.6B', foreignNet: '+9.8B', rsi: 65.0, macd: '+16.5', atr: 35, rvol: 2.2, vwap: 1310, obImbalance: 0.39, confluence: 79, prob: 65.5, sample: 450, sl: 1260, tp1: 1390, tp2: 1450, tp3: 1520, hardFilters: 'Harga Minyak Naik, Momentum OK', signal: 'PASS' },
+            'PGAS': { name: 'Perusahaan Gas Negara Tbk', price: 1550, prev: 1530, high: 1565, low: 1525, volShares: '45.1M', valTraded: '69.8B', foreignNet: '+6.2B', rsi: 61.4, macd: '+8.4', atr: 32, rvol: 1.4, vwap: 1542, obImbalance: 0.28, confluence: 62, prob: 59.2, sample: 320, sl: 1500, tp1: 1600, tp2: 1650, tp3: 1720, hardFilters: 'Likuifitas OK, Konsolidasi Atas', signal: 'PASS' },
+            'CUAN': { name: 'Petrindo Jaya Kreasi Tbk', price: 8250, prev: 7800, high: 8400, low: 7750, volShares: '62.4M', valTraded: '514.8B', foreignNet: '+41.2B', rsi: 78.2, macd: '+142.0', atr: 310, rvol: 3.5, vwap: 8120, obImbalance: 0.62, confluence: 92, prob: 75.8, sample: 640, sl: 7800, tp1: 8750, tp2: 9100, tp3: 9600, hardFilters: 'Volatilitas Tinggi, Momentum Super', signal: 'PASS' },
+            'BREN': { name: 'Barito Renewables Energy Tbk', price: 6950, prev: 6725, high: 7100, low: 6700, volShares: '88.1M', valTraded: '612.3B', foreignNet: '+58.0B', rsi: 71.0, macd: '+98.0', atr: 220, rvol: 2.9, vwap: 6890, obImbalance: 0.51, confluence: 87, prob: 72.0, sample: 530, sl: 6600, tp1: 7350, tp2: 7700, tp3: 8200, hardFilters: 'Penggerak Indeks, Inflow Masif', signal: 'PASS' },
+            'AMMN': { name: 'Amman Mineral Internasional Tbk', price: 9850, prev: 9600, high: 9975, low: 9550, volShares: '48.2M', valTraded: '474.7B', foreignNet: '+34.5B', rsi: 67.4, macd: '+88.0', atr: 250, rvol: 2.1, vwap: 9780, obImbalance: 0.42, confluence: 83, prob: 68.9, sample: 480, sl: 9450, tp1: 10300, tp2: 10700, tp3: 11200, hardFilters: 'Struktur Bullish Uptrend', signal: 'PASS' },
+            'TPIA': { name: 'Chandra Asri Pacific Tbk', price: 8800, prev: 8650, high: 8950, low: 8600, volShares: '29.5M', valTraded: '259.6B', foreignNet: '+19.2B', rsi: 63.1, macd: '+54.0', atr: 210, rvol: 1.8, vwap: 8750, obImbalance: 0.33, confluence: 75, prob: 62.4, sample: 390, sl: 8450, tp1: 9200, tp2: 9500, tp3: 9900, hardFilters: 'Net Asing Positif, Tren Naik', signal: 'PASS' },
+            'MBMA': { name: 'Merdeka Battery Materials Tbk', price: 540, prev: 520, high: 555, low: 515, volShares: '210.4M', valTraded: '113.6B', foreignNet: '+8.1B', rsi: 62.0, macd: '+6.4', atr: 18, rvol: 2.4, vwap: 535, obImbalance: 0.36, confluence: 72, prob: 61.5, sample: 310, sl: 510, tp1: 575, tp2: 600, tp3: 640, hardFilters: 'Volume Expansion, Rebound', signal: 'PASS' },
+            'ARTO': { name: 'Bank Jago Tbk', price: 2850, prev: 2920, high: 2940, low: 2810, volShares: '36.8M', valTraded: '104.8B', foreignNet: '-8.5B', rsi: 42.1, macd: '-18.0', atr: 95, rvol: 1.1, vwap: 2860, obImbalance: -0.22, confluence: -28, prob: 39.5, sample: 240, sl: 2750, tp1: 2980, tp2: 3100, tp3: 3250, hardFilters: 'Koreksi Tekno Bank, Net Asing Jual', signal: 'BLOCK' },
+            'ESSA': { name: 'ESSA Industries Indonesia Tbk', price: 890, prev: 855, high: 905, low: 850, volShares: '112.0M', valTraded: '99.6B', foreignNet: '+12.4B', rsi: 69.8, macd: '+14.2', atr: 28, rvol: 2.7, vwap: 880, obImbalance: 0.48, confluence: 85, prob: 69.4, sample: 410, sl: 840, tp1: 940, tp2: 980, tp3: 1040, hardFilters: 'Breakout Resistance, Akumulasi', signal: 'PASS' },
+            'MDKA': { name: 'Merdeka Copper Gold Tbk', price: 2420, prev: 2380, high: 2450, low: 2360, volShares: '58.4M', valTraded: '141.3B', foreignNet: '+7.6B', rsi: 58.2, macd: '+12.0', atr: 60, rvol: 1.5, vwap: 2410, obImbalance: 0.27, confluence: 64, prob: 58.0, sample: 300, sl: 2340, tp1: 2520, tp2: 2600, tp3: 2720, hardFilters: 'Harga Emas Positif, Trend Bawah', signal: 'WAIT' },
+            'ACES': { name: 'Aspirasi Hidup Indonesia Tbk', price: 840, prev: 825, high: 855, low: 820, volShares: '42.1M', valTraded: '35.3B', foreignNet: '+2.8B', rsi: 56.4, macd: '+4.1', atr: 22, rvol: 1.3, vwap: 835, obImbalance: 0.19, confluence: 55, prob: 54.2, sample: 250, sl: 810, tp1: 875, tp2: 900, tp3: 935, hardFilters: 'Likuifitas Ritel, Pemulihan Ritel', signal: 'WAIT' }
+        };
+
+        const FACTORS = [
+            { group: 'REZIM PASAR', state: 'BULLISH (IHSG +0.6%)', score: '+15', color: 'text-emerald-400' },
+            { group: 'KONTEKS SEKTOR', state: 'SEKTOR FINANSIAL KUAT', score: '+10', color: 'text-emerald-400' },
+            { group: 'KESELARASAN TREN', state: 'MA20 > MA50 > MA200', score: '+20', color: 'text-emerald-400' },
+            { group: 'AKSI HARGA (PA)', state: 'BREAKOUT + RETEST', score: '+15', color: 'text-emerald-400' },
+            { group: 'LONJAKAN VOLUME', state: 'RVOL 2.4x (TINGGI)', score: '+12', color: 'text-emerald-400' },
+            { group: 'MOMENTUM', state: 'RSI 64.2 (AKSELERASI)', score: '+8', color: 'text-emerald-400' },
+            { group: 'ALIRAN DANA ASING', state: 'AKUMULASI KONSISTEN', score: '+10', color: 'text-emerald-400' },
+            { group: 'ALIRAN BROKER', state: 'NET BELI (BK, KZ)', score: '+8', color: 'text-emerald-400' },
+            { group: 'ORDER BOOK', state: 'KETIDAKSEIMBANGAN +0.38', score: '+5', color: 'text-emerald-400' },
+            { group: 'VOLATILITAS', state: 'NORMAL (ATR 85)', score: '+0', color: 'text-slate-400' },
+            { group: 'LIKUIFITAS PASAR', state: 'SANGAT TINGGI (> 100M)', score: '+5', color: 'text-emerald-400' },
+            { group: 'MULTI-TIMEFRAME', state: '1D / 1H / 5M SELARAS', score: '+10', color: 'text-emerald-400' },
+            { group: 'PENALTI REDUNDANSI', state: 'KORELASI INDIKATOR MA', score: '-10', color: 'text-rose-400' },
+            { group: 'DEKAT RESISTEN', state: 'DEKAT RESISTEN KUAT', score: '-10', color: 'text-rose-400' },
+            { group: 'RISKO SENTIMEN', state: 'TANPA RUPS / LAPKEU', score: '0', color: 'text-slate-400' }
+        ];
+
+        // Active Tab State Management
+        let currentTab = 'calculator';
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const tabCalcBtn = document.getElementById('tabCalculator');
+            const tabScrnBtn = document.getElementById('tabScreener');
+            const calcView = document.getElementById('calculatorView');
+            const scrnView = document.getElementById('screenerView');
+
+            if (tab === 'calculator') {
+                calcView.classList.remove('hidden');
+                scrnView.classList.add('hidden');
+                
+                tabCalcBtn.className = "flex items-center space-x-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition bg-blue-600 text-white shadow-lg shadow-blue-600/20";
+                tabScrnBtn.className = "flex items-center space-x-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition bg-slate-800/80 text-slate-400 hover:text-white border border-slate-700/60";
+                
+                // Redraw chart on view switch
+                setTimeout(() => drawChart(document.getElementById('tickerSelect').value), 50);
+            } else {
+                calcView.classList.add('hidden');
+                scrnView.classList.remove('hidden');
+
+                tabScrnBtn.className = "flex items-center space-x-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition bg-emerald-600 text-white shadow-lg shadow-emerald-600/20";
+                tabCalcBtn.className = "flex items-center space-x-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition bg-slate-800/80 text-slate-400 hover:text-white border border-slate-700/60";
+                
+                renderScreenerTable();
+            }
+        }
+
+        // Populate Ticker Options in Dropdown
+        function populateTickerDropdown() {
+            const select = document.getElementById('tickerSelect');
+            select.innerHTML = Object.keys(STOCKS).map(symbol => `
+                <option value="${symbol}">${symbol} - ${STOCKS[symbol].name}</option>
+            `).join('');
+        }
+
+        // Render Screener Table
+        function renderScreenerTable() {
+            const tbody = document.getElementById('screenerTableBody');
+            const filterSearch = (document.getElementById('screenerSearch').value || '').toUpperCase();
+            const filterStatus = document.getElementById('statusFilter').value;
+
+            const symbols = Object.keys(STOCKS);
+            let filtered = symbols.filter(symbol => {
+                const stock = STOCKS[symbol];
+                const matchesSearch = symbol.includes(filterSearch) || stock.name.toUpperCase().includes(filterSearch);
+                const matchesStatus = filterStatus === 'ALL' || stock.signal === filterStatus;
+                return matchesSearch && matchesStatus;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="p-8 text-center text-slate-500 font-mono">Belum ada data tervalidasi atau tidak ada saham yang cocok.</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            const capitalDefault = 50000000;
+
+            tbody.innerHTML = filtered.map(symbol => {
+                const stock = STOCKS[symbol];
+                const riskPerShare = Math.max(1, stock.price - stock.sl);
+                const riskBudget = capitalDefault * 0.01;
+                const totalShares = Math.floor(riskBudget / riskPerShare);
+                const lots = Math.floor(totalShares / 100);
+
+                let badgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+                let signalText = 'SIAP (PASS)';
+                if (stock.signal === 'WAIT') {
+                    badgeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+                    signalText = 'TUNGGU (WAIT)';
+                } else if (stock.signal === 'BLOCK') {
+                    badgeClass = 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+                    signalText = 'BLOKIR (BLOCK)';
+                }
+
+                const probDisplay = stock.prob != null ? stock.prob.toFixed(1) + '%' : 'N/A';
+
+                return `
+                    <tr class="hover:bg-slate-900/80 transition border-b border-slate-800/40">
+                        <td class="p-3.5 font-bold text-white flex flex-col">
+                            <span class="text-sm tracking-wider">${symbol}</span>
+                            <span class="text-[10px] text-slate-400 font-normal truncate max-w-[140px]">${stock.name}</span>
+                        </td>
+                        <td class="p-3.5">
+                            <div class="font-bold text-slate-200">Rp ${stock.price.toLocaleString('id-ID')}</div>
+                            <div class="text-[10px] ${stock.price >= stock.prev ? 'text-emerald-400' : 'text-rose-400'} font-semibold">
+                                ${stock.price >= stock.prev ? '+' : ''}${stock.price - stock.prev} (${(((stock.price - stock.prev)/stock.prev)*100).toFixed(2)}%)
+                            </div>
+                        </td>
+                        <td class="p-3.5 font-semibold text-slate-300">
+                            Rp ${stock.valTraded}
+                        </td>
+                        <td class="p-3.5 text-[10px] text-slate-400">
+                            <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800">${stock.hardFilters}</span>
+                        </td>
+                        <td class="p-3.5">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-black ${stock.confluence > 50 ? 'text-emerald-400' : stock.confluence >= 0 ? 'text-amber-400' : 'text-rose-400'}">
+                                    ${stock.confluence > 0 ? '+' : ''}${stock.confluence}
+                                </span>
+                                <div class="w-16 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                    <div class="${stock.confluence > 50 ? 'bg-emerald-500' : stock.confluence >= 0 ? 'bg-amber-500' : 'bg-rose-500'} h-full" style="width: ${Math.min(100, Math.max(5, (stock.confluence + 100) / 2))}%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-3.5 font-bold text-indigo-400">
+                            ${probDisplay}
+                        </td>
+                        <td class="p-3.5">
+                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border ${badgeClass}">
+                                ${signalText}
+                            </span>
+                        </td>
+                        <td class="p-3.5 text-amber-400 font-bold">
+                            ${lots} LOTS
+                        </td>
+                        <td class="p-3.5 text-center">
+                            <button onclick="selectStockAndAnalyze('${symbol}')" class="bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white px-3 py-1 rounded-lg border border-blue-500/30 text-[11px] font-bold transition active:scale-95">
+                                Analisis
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterScreenerTable() {
+            renderScreenerTable();
+        }
+
+        function selectStockAndAnalyze(symbol) {
+            document.getElementById('tickerSelect').value = symbol;
+            switchTab('calculator');
+            updateStockDesk();
+        }
+
+        function runAutoScanner() {
+            const zapIcon = document.getElementById('scannerZapIcon');
+            const btnText = document.getElementById('scannerBtnText');
+            zapIcon.classList.add('animate-spin');
+            btnText.innerText = 'MEMINDAI KESELURUHAN IHSG...';
+
+            setTimeout(() => {
+                zapIcon.classList.remove('animate-spin');
+                btnText.innerText = 'JALANKAN LIVE AUTO-SCANNER IHSG';
+                renderScreenerTable();
+            }, 600);
+        }
+
+        function renderFactorMatrix() {
+            const factorMatrix = document.getElementById('factorMatrix');
+            factorMatrix.innerHTML = FACTORS.map(f => `
+                <div class="px-3 py-1.5 grid grid-cols-12 gap-1 items-center hover:bg-slate-900/50 transition">
+                    <span class="col-span-5 text-slate-300 font-semibold text-[11px]">${f.group}</span>
+                    <span class="col-span-4 text-center text-slate-400 text-[10px] truncate">${f.state}</span>
+                    <span class="col-span-3 text-right font-extrabold ${f.color}">${f.score}</span>
+                </div>
+            `).join('');
+        }
+
+        // ================= LIVE MARKET DATA ENGINE v4.1 (VERCEL SERVERLESS BACKEND) =================
+        const marketSeries = {};
+
+        function timeframeConfig(tf){
+            if(tf==='5m') return {interval:'5m',range:'5d'};
+            if(tf==='15m') return {interval:'15m',range:'10d'};
+            if(tf==='1H') return {interval:'60m',range:'1mo'};
+            return {interval:'1d',range:'1y'};
+        }
+
+        async function fetchMarketSeries(symbol, tf){
+            const cfg = timeframeConfig(tf);
+            const target = `https://stepm-idx-backend.vercel.app/api/chart?symbol=${encodeURIComponent(symbol)}&interval=${cfg.interval}&range=${cfg.range}`;
+            try {
+                const ctl = new AbortController();
+                const timer = setTimeout(() => ctl.abort(), 10000);
+                const res = await fetch(target, { signal: ctl.signal, cache: 'no-store' });
+                clearTimeout(timer);
+                if (!res.ok) return null;
+                const j = await res.json();
+                const r = j?.chart?.result?.[0];
+                if (!r?.timestamp || !r?.indicators?.quote?.[0]) return null;
+                const q = r.indicators.quote[0];
+                const candles = [];
+                r.timestamp.forEach((ts, i) => {
+                    const o = q.open?.[i], h = q.high?.[i], l = q.low?.[i], c = q.close?.[i], v = q.volume?.[i];
+                    if ([o, h, l, c].every(Number.isFinite)) candles.push({ time: ts * 1000, open: o, high: h, low: l, close: c, volume: Number.isFinite(v) ? v : 0 });
+                });
+                if (candles.length < 2) return null;
+                return { candles, meta: r.meta || {}, source: 'Vercel Proxy Feed', fetchedAt: new Date().toISOString() };
+            } catch (e) {
+                console.error('Gagal mengambil data via Vercel proxy:', e);
+                return null;
+            }
+        }
+
+        function sma(vals,n){
+            return vals.map((_,i)=>i+1<n?null:vals.slice(i-n+1,i+1).reduce((a,b)=>a+b,0)/n);
+        }
+        function ema(vals,n){
+            const out=Array(vals.length).fill(null), k=2/(n+1);
+            if(vals.length<n)return out;
+            let e=vals.slice(0,n).reduce((a,b)=>a+b,0)/n; out[n-1]=e;
+            for(let i=n;i<vals.length;i++){e=vals[i]*k+e*(1-k);out[i]=e;}
+            return out;
+        }
+        function rsi(vals,n=14){
+            const out=Array(vals.length).fill(null); if(vals.length<=n)return out;
+            let gain=0,loss=0;
+            for(let i=1;i<=n;i++){const d=vals[i]-vals[i-1];gain+=Math.max(d,0);loss+=Math.max(-d,0);}
+            let ag=gain/n, al=loss/n; out[n]=al===0?100:100-100/(1+ag/al);
+            for(let i=n+1;i<vals.length;i++){const d=vals[i]-vals[i-1],g=Math.max(d,0),l=Math.max(-d,0);ag=(ag*(n-1)+g)/n;al=(al*(n-1)+l)/n;out[i]=al===0?100:100-100/(1+ag/al);}
+            return out;
+        }
+        function atr(candles,n=14){
+            const tr=candles.map((c,i)=>i===0?c.high-c.low:Math.max(c.high-c.low,Math.abs(c.high-candles[i-1].close),Math.abs(c.low-candles[i-1].close)));
+            return ema(tr,n);
+        }
+        function calcVWAP(candles){
+            let pv=0,v=0; return candles.map(c=>{const tp=(c.high+c.low+c.close)/3;pv+=tp*c.volume;v+=c.volume;return v?pv/v:null;});
+        }
+        function enrichSeries(s){
+            const closes=s.candles.map(c=>c.close), vols=s.candles.map(c=>c.volume);
+            s.ma20=sma(closes,20); s.ma50=sma(closes,50); s.rsi=rsi(closes,14); s.atr=atr(s.candles,14); s.vwap=calcVWAP(s.candles);
+            const e12=ema(closes,12),e26=ema(closes,26);
+            s.macd=e12.map((x,i)=>x!=null&&e26[i]!=null?x-e26[i]:null);
+            s.volumeSma20=sma(vols,20);
+            return s;
+        }
+        function fmtBillion(x){ return (x/1e9).toLocaleString('id-ID',{maximumFractionDigits:2})+'B'; }
+        function fmtMillion(x){ return (x/1e6).toLocaleString('id-ID',{maximumFractionDigits:2})+'M'; }
+
+        async function loadLiveData(symbol, silent=false){
+            const tf=document.getElementById('timeframeSelect')?.value||'1D';
+            const badge=document.getElementById('dataModeBadge');
+            if(badge) badge.textContent='● DATA: MENGAMBIL…';
+            const result=await fetchMarketSeries(symbol,tf);
+            if(!result){
+                if(badge) badge.textContent='● DATA: FEED GAGAL';
+                if(!silent) alert(`Data ${symbol} tidak berhasil diambil. Menggunakan data cadangan.`);
+                return false;
+            }
+            enrichSeries(result);
+            marketSeries[symbol]=result;
+            const c=result.candles[result.candles.length-1], prev=result.candles[result.candles.length-2];
+            const old=STOCKS[symbol]||{};
+            const vol=c.volume||0;
+            const turnover=vol*c.close;
+            const avgVol=result.volumeSma20?.at(-1);
+            const rv=avgVol?vol/avgVol:null;
+
+            const calcRsi = result.rsi.at(-1);
+            const calcMacd = result.macd.at(-1);
+            const calcAtr = result.atr.at(-1);
+            const calcVwap = result.vwap.at(-1);
+
+            STOCKS[symbol]={
+                ...old, price:c.close, prev:prev?.close??c.close, high:c.high, low:c.low,
+                volShares:fmtMillion(vol), valTraded:fmtBillion(turnover),
+                rsi: calcRsi != null ? parseFloat(calcRsi.toFixed(1)) : (old.rsi || 50),
+                macd: calcMacd != null ? (calcMacd >= 0 ? '+' : '') + calcMacd.toFixed(1) : (old.macd || '0'),
+                atr: calcAtr != null ? Math.round(calcAtr) : (old.atr || 0),
+                rvol: rv != null ? parseFloat(rv.toFixed(1)) : (old.rvol || 1.0),
+                vwap: calcVwap != null ? Math.round(calcVwap) : (old.vwap || c.close),
+                dataStatus:'VALID', dataSource:result.source, dataTimestamp:new Date(c.time).toISOString()
+            };
+
+            if(badge){
+                badge.textContent=`● DATA: ${result.source.toUpperCase()} • ${tf}`;
+                badge.className='text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
+            }
+            updateRiskCalculations();
+            drawChart(symbol);
+            return true;
+        }
+
+        function drawChart(ticker) {
+            const canvas = document.getElementById('priceCanvas');
+            if (!canvas || currentTab !== 'calculator') return;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const W = canvas.parentElement.clientWidth, H = canvas.parentElement.clientHeight;
+            if (W === 0 || H === 0) return;
+            canvas.width = W * dpr; canvas.height = H * dpr;
+            ctx.setTransform(dpr,0,0,dpr,0,0);
+            ctx.clearRect(0,0,W,H);
+
+            ctx.strokeStyle='#1e293b'; ctx.lineWidth=0.5;
+            for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+            for(let y=0;y<H;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+            const m = marketSeries[ticker];
+            if (!m || !m.candles || m.candles.length < 2) {
+                ctx.fillStyle='#64748b'; ctx.font='12px JetBrains Mono';
+                ctx.fillText('Menunggu data OHLCV tervalidasi…',20,30);
+                return;
+            }
+
+            const candles=m.candles.slice(-80);
+            const lows=candles.map(c=>c.low), highs=candles.map(c=>c.high);
+            const lo=Math.min(...lows), hi=Math.max(...highs), pad=(hi-lo)*0.08 || 1;
+            const minV=lo-pad, maxV=hi+pad;
+            const py=v => H-38-((v-minV)/(maxV-minV))*(H-68);
+            const left=20,right=W-20, step=(right-left)/candles.length;
+            const bodyW=Math.max(2,step*0.62);
+
+            candles.forEach((c,i)=>{
+                const x=left+i*step+step/2, bull=c.close>=c.open;
+                ctx.strokeStyle=bull?'#10b981':'#ef4444'; ctx.lineWidth=1;
+                ctx.beginPath();ctx.moveTo(x,py(c.high));ctx.lineTo(x,py(c.low));ctx.stroke();
+                ctx.fillStyle=bull?'#10b981':'#ef4444';
+                const top=py(Math.max(c.open,c.close)), bh=Math.max(1,Math.abs(py(c.open)-py(c.close)));
+                ctx.fillRect(x-bodyW/2,top,bodyW,bh);
+            });
+
+            const drawLine=(values,stroke)=>{
+                ctx.strokeStyle=stroke;ctx.lineWidth=1.7;ctx.beginPath();let started=false;
+                values.forEach((v,i)=>{if(v==null)return;const x=left+i*step+step/2;if(!started){ctx.moveTo(x,py(v));started=true;}else ctx.lineTo(x,py(v));});
+                if(started)ctx.stroke();
+            };
+            drawLine(m.ma20,'#3b82f6');
+            drawLine(m.ma50,'#f97316');
+
+            ctx.fillStyle='#94a3b8';ctx.font='10px JetBrains Mono';
+            ctx.fillText('OHLCV FEED • '+(m.source||'unknown'),20,H-10);
+        }
+
+        function updateRiskCalculations() {
+            const symbol = document.getElementById('tickerSelect').value;
+            const stock = STOCKS[symbol] || STOCKS['BBRI'];
+
+            const capitalInput = document.getElementById('inputCapital');
+            const riskPctInput = document.getElementById('inputRiskPercent');
+
+            const capital = parseFloat(capitalInput.value) || 50000000;
+            const riskPct = parseFloat(riskPctInput.value) || 1.0;
+
+            const entryPrice = stock.price;
+            const stopLoss = stock.sl;
+            const riskPerShare = Math.max(1, entryPrice - stopLoss);
+            const riskBudgetVal = capital * (riskPct / 100);
+
+            const totalShares = Math.floor(riskBudgetVal / riskPerShare);
+            const totalLots = Math.floor(totalShares / 100);
+            const finalShares = totalLots * 100;
+            const capitalRequired = finalShares * entryPrice;
+
+            // Calculate Wilson Score Interval for 95% Confidence
+            const p = Number.isFinite(stock.prob) ? stock.prob / 100 : null;
+            const n = Number(stock.sample) || 0;
+            const z = 1.96;
+            let ciLower = 'N/A', ciUpper = 'N/A';
+
+            if (p !== null && n > 0) {
+                const denom = 1 + (z * z) / n;
+                const center = (p + (z * z) / (2 * n)) / denom;
+                const margin = (z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n))) / denom;
+                ciLower = Math.max(0, (center - margin) * 100).toFixed(1);
+                ciUpper = Math.min(100, (center + margin) * 100).toFixed(1);
+            }
+
+            // Calculate Net Expected Value (EV) accounting for IDX fees (0.15% Buy, 0.25% Sell)
+            const buyFee = 0.0015;
+            const sellFee = 0.0025;
+            const grossRewardPerShare = stock.tp2 - entryPrice;
+            const netRewardPerShare = grossRewardPerShare - (entryPrice * buyFee + stock.tp2 * sellFee);
+            const netRiskPerShare = riskPerShare + (entryPrice * buyFee + stopLoss * sellFee);
+
+            const evPerShare = p === null ? 0 : (p * netRewardPerShare) - ((1 - p) * netRiskPerShare);
+            const netTotalEV = Math.round(evPerShare * finalShares);
+
+            // Update Header & Price Elements
+            document.getElementById('stockSymbol').innerText = symbol;
+            document.getElementById('stockName').innerText = stock.name;
+            document.getElementById('lastPrice').innerText = entryPrice.toLocaleString('id-ID');
+            
+            const diff = entryPrice - stock.prev;
+            const diffPct = ((diff / stock.prev) * 100).toFixed(2);
+            const priceChangeEl = document.getElementById('priceChange');
+            priceChangeEl.innerText = `${diff >= 0 ? '+' : ''}${diff.toLocaleString('id-ID')} (${diffPct >= 0 ? '+' : ''}${diffPct}%)`;
+            priceChangeEl.className = diff >= 0 ? 'text-sm font-semibold text-emerald-400 mono' : 'text-sm font-semibold text-rose-400 mono';
+
+            document.getElementById('prevClose').innerText = stock.prev.toLocaleString('id-ID');
+            document.getElementById('highPrice').innerText = stock.high.toLocaleString('id-ID');
+            document.getElementById('lowPrice').innerText = stock.low.toLocaleString('id-ID');
+            
+            document.getElementById('volShares').innerText = stock.volShares;
+            document.getElementById('valTraded').innerText = stock.valTraded;
+            document.getElementById('foreignNet').innerText = stock.foreignNet;
+            document.getElementById('foreignNet').className = stock.foreignNet.startsWith('+') ? 'font-bold text-emerald-400 mt-0.5' : 'font-bold text-rose-400 mt-0.5';
+
+            document.getElementById('valRSI').innerText = stock.rsi;
+            document.getElementById('valMACD').innerText = stock.macd;
+            document.getElementById('valATR').innerText = stock.atr;
+            document.getElementById('valRVOL').innerText = stock.rvol + 'x';
+            document.getElementById('valVWAP').innerText = stock.vwap.toLocaleString('id-ID');
+            
+            document.getElementById('confluenceScore').innerText = (stock.confluence > 0 ? '+' : '') + stock.confluence;
+            document.getElementById('confluenceBar').style.width = Math.min(100, Math.max(5, (stock.confluence + 100) / 2)) + '%';
+
+            document.getElementById('sampleSize').innerText = n > 0 ? n + ' Setup Sebanding' : 'N/A — Sampel Tidak Cukup';
+            document.getElementById('probPercent').innerText = p === null ? 'N/A' : (p * 100).toFixed(1) + '%';
+            document.getElementById('probCI').innerText = p === null ? 'N/A' : `[${ciLower}% – ${ciUpper}%]`;
+
+            document.getElementById('entryZone').innerText = `${(entryPrice - 20).toLocaleString('id-ID')} – ${entryPrice.toLocaleString('id-ID')}`;
+            document.getElementById('valStopLoss').innerText = `${stopLoss.toLocaleString('id-ID')} (-${((riskPerShare / entryPrice) * 100).toFixed(2)}%)`;
+            document.getElementById('invStopLoss').innerText = stopLoss.toLocaleString('id-ID');
+
+            document.getElementById('valTP1').innerText = stock.tp1.toLocaleString('id-ID');
+            document.getElementById('valTP2').innerText = stock.tp2.toLocaleString('id-ID');
+            document.getElementById('valTP3').innerText = stock.tp3.toLocaleString('id-ID');
+
+            document.getElementById('riskBudget').innerText = 'Rp ' + Math.round(riskBudgetVal).toLocaleString('id-ID');
+            document.getElementById('recLots').innerText = totalLots + ' LOTS (' + finalShares.toLocaleString('id-ID') + ' lembar)';
+            document.getElementById('capitalReq').innerText = 'Rp ' + capitalRequired.toLocaleString('id-ID') + ' (' + ((capitalRequired/capital)*100).toFixed(1) + '%)';
+            
+            const netEVEl = document.getElementById('netEV');
+            netEVEl.innerText = (netTotalEV >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netTotalEV).toLocaleString('id-ID') + ' / Trade';
+            netEVEl.className = netTotalEV >= 0 ? 'text-emerald-400 font-black' : 'text-rose-400 font-black';
+
+            // Dynamic Signal Gate Status
+            const gateBadge = document.getElementById('signalGateBadge');
+            if(stock.confluence >= 50 && netTotalEV > 0) {
+                gateBadge.innerText = 'SIAP (PASS)';
+                gateBadge.className = 'text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-mono';
+            } else if(stock.confluence >= 0) {
+                gateBadge.innerText = 'TUNGGU (WAIT)';
+                gateBadge.className = 'text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 font-mono';
+            } else {
+                gateBadge.innerText = 'BLOKIR (BLOCK)';
+                gateBadge.className = 'text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40 font-mono';
+            }
+
+            // Dynamic AI Analyst Synthesis Generation
+            const aiTextEl = document.getElementById('aiSynthesisText');
+            aiTextEl.innerHTML = `
+                <p><strong class="text-emerald-400">[SINTESIS]:</strong> Skor Konfluensi (${stock.confluence > 0 ? '+' : ''}${stock.confluence}) dan aliran dana asing (${stock.foreignNet}) mendukung area beli di sekitar ${entryPrice - 20}–${entryPrice}. Batas rugi (Stop Loss) dipasang ketat di swing low (${stopLoss.toLocaleString('id-ID')}).</p>
+                <p><strong class="text-amber-400">[PEMICU]:</strong> Konfirmasi retest di atas ${(entryPrice - 20).toLocaleString('id-ID')} atau lonjakan volume > 1.5x rerata harian.</p>
+                <p><strong class="text-rose-400">[INVALIDASI]:</strong> Penutupan harian di bawah ${stopLoss.toLocaleString('id-ID')} atau alir arus asing berbalik keluar > Rp 20 Miliar.</p>
+            `;
+
+            drawChart(symbol);
+        }
+
+        async function updateStockDesk() {
+            const symbol=document.getElementById('tickerSelect').value;
+            const ok=await loadLiveData(symbol,true);
+            if(!ok) { updateRiskCalculations(); drawChart(symbol); }
+        }
+
+        async function refreshData() {
+            const spinner=document.getElementById('refreshSpinner');
+            const symbol=document.getElementById('tickerSelect').value;
+            spinner.classList.add('animate-spin');
+            try { await loadLiveData(symbol); }
+            finally { spinner.classList.remove('animate-spin'); }
+        }
+
+        function generateDataContractJSON() {
+            const symbol = document.getElementById('tickerSelect').value;
+            const stock = STOCKS[symbol] || STOCKS['BBRI'];
+            const lotsText = document.getElementById('recLots').innerText;
+            const parsedLots = parseInt(lotsText.match(/\d+/)?.[0] || '0', 10);
+
+            const contract = {
+                "$schema": "STEPM_IDX_CANONICAL_DATA_CONTRACT_V4",
+                "metadata": {
+                    "contractVersion": "4.0.0",
+                    "symbol": symbol,
+                    "exchange": "IDX",
+                    "timestamp": new Date().toISOString(),
+                    "timezone": "Asia/Jakarta (UTC+7)",
+                    "dataStatus": stock.dataStatus || "STATIC_REFERENCE_ONLY",
+                    "isRealtime": stock.dataStatus === "VALID",
+                    "source": stock.dataSource || "STATIC_DB",
+                    "dataTimestamp": stock.dataTimestamp || null
+                },
+                "ohlcv": {
+                    "price": stock.price,
+                    "previousClose": stock.prev,
+                    "high": stock.high,
+                    "low": stock.low,
+                    "volumeShares": stock.volShares,
+                    "valueTraded": stock.valTraded
+                },
+                "derivedIndicators": {
+                    "rsi14": stock.rsi,
+                    "macd": stock.macd,
+                    "atr14": stock.atr,
+                    "rvol": stock.rvol,
+                    "vwap": stock.vwap,
+                    "obImbalance": stock.obImbalance
+                },
+                "confluenceEngine": {
+                    "netScore": stock.confluence,
+                    "classification": stock.confluence > 50 ? "STRONG_POSITIVE_ALIGNMENT" : "MIXED"
+                },
+                "probabilityEngine": {
+                    "empiricalHitRate": stock.prob,
+                    "sampleSize": stock.sample || 0,
+                    "confidenceInterval95": document.getElementById('probCI').innerText
+                },
+                "riskEngine": {
+                    "stopLoss": stock.sl,
+                    "tp1": stock.tp1,
+                    "tp2": stock.tp2,
+                    "tp3": stock.tp3,
+                    "recommendedLots": parsedLots,
+                    "signalGate": document.getElementById('signalGateBadge').innerText
+                }
+            };
+
+            return JSON.stringify(contract, null, 2);
+        }
+
+        // Audit Modal Controls
+        function openAuditModal() {
+            document.getElementById('jsonPayload').innerText = generateDataContractJSON();
+            document.getElementById('auditModal').classList.remove('hidden');
+        }
+
+        function closeAuditModal() {
+            document.getElementById('auditModal').classList.add('hidden');
+        }
+
+        document.getElementById('auditModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('auditModal')) closeAuditModal();
+        });
+
+        // Window Initializer
+        window.onload = function() {
+            populateTickerDropdown();
+            renderFactorMatrix();
+            renderScreenerTable();
+            updateRiskCalculations();
+            loadLiveData(document.getElementById('tickerSelect').value, true);
+
+            window.addEventListener('resize', () => {
+                if (currentTab === 'calculator') {
+                    drawChart(document.getElementById('tickerSelect').value);
+                }
+            });
+        };
+    </script>
+</body>
+</html>
+
+```
