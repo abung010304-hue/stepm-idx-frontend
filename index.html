@@ -504,87 +504,89 @@
         }
 
         // Live Data Gateway dengan Dual Proxy Fallback (Sangat Handal)
-        async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
-            const reqKey = `${symbol}_${timeframe}`;
-            if (activeRequestsMap.has(reqKey)) return activeRequestsMap.get(reqKey);
+        // Live Data API Gateway dengan Timeout Cepat & Anti-Hang
+async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
+    const reqKey = `${symbol}_${timeframe}`;
+    if (activeRequestsMap.has(reqKey)) return activeRequestsMap.get(reqKey);
 
-            const fetchPromise = (async () => {
-                const startTime = Date.now();
-                const formattedSymbol = symbol.endsWith('.JK') ? symbol : `${symbol}.JK`;
+    const fetchPromise = (async () => {
+        const startTime = Date.now();
+        const formattedSymbol = symbol.endsWith('.JK') ? symbol : `${symbol}.JK`;
 
-                // Daftar URL proxy pengganti untuk jaminan berhasil
-                const proxyUrls = [
-                    `https://stepm-idx-backend.vercel.app/api/chart?symbol=${encodeURIComponent(formattedSymbol)}&interval=${timeframe}&range=1y`,
-                    `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${formattedSymbol}?interval=${timeframe}&range=1y`)}`
-                ];
+        // Menggunakan CORS Proxy publik yang lebih cepat & stabil
+        const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(formattedSymbol)}?interval=${timeframe}&range=1y`;
+        const proxyUrls = [
+            `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+            `https://stepm-idx-backend.vercel.app/api/chart?symbol=${encodeURIComponent(formattedSymbol)}&interval=${timeframe}&range=1y`
+        ];
 
-                for (const url of proxyUrls) {
-                    try {
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-                        const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-                        clearTimeout(timeoutId);
-
-                        if (!response.ok) continue;
-
-                        const json = await response.json();
-                        const result = json?.chart?.result?.[0];
-                        if (!result || !result.timestamp || !result.indicators?.quote?.[0]) continue;
-
-                        const quote = result.indicators.quote[0];
-                        const candles = [];
-
-                        result.timestamp.forEach((ts, idx) => {
-                            const o = quote.open?.[idx], h = quote.high?.[idx],
-                                  l = quote.low?.[idx], c = quote.close?.[idx],
-                                  v = quote.volume?.[idx];
-
-                            if ([o, h, l, c].every(Number.isFinite) && h >= l && o > 0 && c > 0) {
-                                candles.push({
-                                    time: ts * 1000,
-                                    open: o, high: h, low: l, close: c,
-                                    volume: Number.isFinite(v) ? v : 0
-                                });
-                            }
-                        });
-
-                        if (candles.length < 10) continue;
-
-                        const lastCandle = candles[candles.length - 1];
-                        const latencyMs = Date.now() - startTime;
-
-                        document.getElementById('dataModeBadge').innerText = '● LIVE API FEED READY';
-                        document.getElementById('dataModeBadge').className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
-
-                        return {
-                            symbol: symbol,
-                            meta: result.meta || {},
-                            candles: candles,
-                            lastPrice: lastCandle.close,
-                            prevClose: candles[candles.length - 2] ? candles[candles.length - 2].close : lastCandle.open,
-                            highPrice: lastCandle.high,
-                            lowPrice: lastCandle.low,
-                            openPrice: lastCandle.open,
-                            volumeShares: lastCandle.volume,
-                            latencyMs: latencyMs,
-                            status: 'VALID'
-                        };
-                    } catch (e) {
-                        console.warn(`Proxy gagal (${url}), mencoba opsi berikutnya...`);
-                    }
-                }
-
-                return { symbol: symbol, status: 'INVALID', error: 'ALL_PROXIES_FAILED' };
-            })();
-
-            activeRequestsMap.set(reqKey, fetchPromise);
+        for (const url of proxyUrls) {
             try {
-                return await fetchPromise;
-            } finally {
-                activeRequestsMap.delete(reqKey);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000); // Timeout cepat 4 detik
+
+                const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) continue;
+
+                const json = await response.json();
+                const result = json?.chart?.result?.[0];
+                if (!result || !result.timestamp || !result.indicators?.quote?.[0]) continue;
+
+                const quote = result.indicators.quote[0];
+                const candles = [];
+
+                result.timestamp.forEach((ts, idx) => {
+                    const o = quote.open?.[idx], h = quote.high?.[idx],
+                          l = quote.low?.[idx], c = quote.close?.[idx],
+                          v = quote.volume?.[idx];
+
+                    if ([o, h, l, c].every(Number.isFinite) && h >= l && o > 0 && c > 0) {
+                        candles.push({
+                            time: ts * 1000,
+                            open: o, high: h, low: l, close: c,
+                            volume: Number.isFinite(v) ? v : 0
+                        });
+                    }
+                });
+
+                if (candles.length < 10) continue;
+
+                const lastCandle = candles[candles.length - 1];
+                const latencyMs = Date.now() - startTime;
+
+                document.getElementById('dataModeBadge').innerText = '● LIVE API FEED READY';
+                document.getElementById('dataModeBadge').className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
+
+                return {
+                    symbol: symbol,
+                    meta: result.meta || {},
+                    candles: candles,
+                    lastPrice: lastCandle.close,
+                    prevClose: candles[candles.length - 2] ? candles[candles.length - 2].close : lastCandle.open,
+                    highPrice: lastCandle.high,
+                    lowPrice: lastCandle.low,
+                    openPrice: lastCandle.open,
+                    volumeShares: lastCandle.volume,
+                    latencyMs: latencyMs,
+                    status: 'VALID'
+                };
+            } catch (e) {
+                console.warn(`[API_FETCH] Proxy lambat/gagal: ${url}`);
             }
         }
+
+        return { symbol: symbol, status: 'INVALID', error: 'ALL_PROXIES_FAILED' };
+    })();
+
+    activeRequestsMap.set(reqKey, fetchPromise);
+    try {
+        return await fetchPromise;
+    } finally {
+        activeRequestsMap.delete(reqKey);
+    }
+}
 
         // Engine Indikator Teknis: RSI, MACD, ATR, MA20/50, RVOL
         function calculateIndicators(candles) {
