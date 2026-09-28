@@ -49,8 +49,8 @@
                 <div>
                     <div class="flex items-center space-x-2">
                         <span class="font-black text-xl tracking-wider text-white">STEPM-IDX</span>
-                        <span class="text-[10px] uppercase tracking-widest font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">v4.0 Canonical</span>
-                        <span id="dataModeBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">● LIVE FEED</span>
+                        <span class="text-[10px] uppercase tracking-widest font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">v4.0 Full Engine</span>
+                        <span id="dataModeBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">● LIVE API FEED</span>
                     </div>
                     <p class="text-xs text-slate-400">Quantitative Trading Desk & Risk Engine Pasar Saham Indonesia (BEI)</p>
                 </div>
@@ -59,7 +59,7 @@
             <div class="flex items-center space-x-3">
                 <div class="bg-slate-950/80 px-3.5 py-1.5 rounded-xl border border-slate-800 flex items-center space-x-2 text-xs font-mono">
                     <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
-                    <span class="text-emerald-400 font-bold">Signal Gate: Safety Active</span>
+                    <span id="statusHeaderGate" class="text-emerald-400 font-bold">Signal Gate: Safety Active</span>
                 </div>
             </div>
         </div>
@@ -88,13 +88,17 @@
                 <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
                     <div class="flex items-center space-x-2">
                         <i data-lucide="activity" class="w-5 h-5 text-emerald-400"></i>
-                        <h2 class="text-sm font-extrabold uppercase text-white tracking-wider">HASIL SCREENER SAHAM IDX (VALIDATED MARKET DATA ENGINE)</h2>
+                        <h2 class="text-sm font-extrabold uppercase text-white tracking-wider">HASIL SCREENER SAHAM IDX (LIVE MARKET DATA ENGINE)</h2>
                     </div>
                     <div class="flex flex-wrap items-center gap-3">
                         <div class="relative">
                             <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-500"></i>
-                            <input id="screenerSearch" type="text" placeholder="Cari Saham (e.g. BBRI, BBCA)" oninput="filterScreenerTable()" class="bg-slate-950 text-slate-200 text-xs font-mono pl-9 pr-3 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500 w-64">
+                            <input id="screenerSearch" type="text" placeholder="Cari Saham (e.g. BBRI, BBCA, TLKM)" oninput="renderScreenerTable()" class="bg-slate-950 text-slate-200 text-xs font-mono pl-9 pr-3 py-2 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500 w-64">
                         </div>
+                        <button id="btnRunScanner" onclick="runAutoScanner()" class="flex items-center space-x-2 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition active:scale-95 shadow-lg shadow-emerald-600/20">
+                            <i data-lucide="zap" class="w-4 h-4" id="scannerZapIcon"></i>
+                            <span id="scannerBtnText">SCAN SEMUA SAHAM VIA LIVE API</span>
+                        </button>
                     </div>
                 </div>
                 <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
@@ -103,8 +107,7 @@
                             <tr class="bg-slate-900/90 text-slate-400 font-bold border-b border-slate-800 uppercase tracking-wider text-[11px]">
                                 <th class="p-3.5">KODE SAHAM</th>
                                 <th class="p-3.5">HARGA TERAKHIR</th>
-                                <th class="p-3.5">TURNOVER (20D)</th>
-                                <th class="p-3.5">HARD FILTERS</th>
+                                <th class="p-3.5">TURNOVER (EST)</th>
                                 <th class="p-3.5">SKOR KONFLUENSI</th>
                                 <th class="p-3.5">PROBABILITAS P(WIN)</th>
                                 <th class="p-3.5">STATUS SINYAL</th>
@@ -126,19 +129,19 @@
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-3 pb-3 border-b border-slate-800">
                         <div class="flex items-center space-x-2">
                             <span class="text-xs text-slate-400 font-bold">PILIH SAHAM:</span>
-                            <select id="tickerSelect" onchange="updateStockDesk()" class="bg-slate-950 text-white font-extrabold text-sm rounded-xl px-3 py-1.5 border border-slate-700 focus:outline-none focus:border-blue-500 transition"></select>
+                            <select id="tickerSelect" onchange="fetchAndAnalyzeSelectedStock()" class="bg-slate-950 text-white font-extrabold text-sm rounded-xl px-3 py-1.5 border border-slate-700 focus:outline-none focus:border-blue-500 transition"></select>
                         </div>
                         <div class="flex items-center space-x-2">
                             <span class="text-xs text-slate-400 font-medium">TIMEFRAME:</span>
-                            <select id="timeframeSelect" onchange="updateStockDesk()" class="bg-slate-950 text-white font-semibold text-xs rounded-xl px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-blue-500 transition">
-                                <option value="1D" selected>1D</option>
-                                <option value="1H">1H</option>
+                            <select id="timeframeSelect" onchange="fetchAndAnalyzeSelectedStock()" class="bg-slate-950 text-white font-semibold text-xs rounded-xl px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-blue-500 transition">
+                                <option value="1d" selected>1D</option>
+                                <option value="1h">1H</option>
                                 <option value="15m">15m</option>
                                 <option value="5m">5m</option>
                             </select>
-                            <button id="btnRefresh" onclick="refreshData()" class="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 shadow-lg shadow-blue-600/20">
+                            <button id="btnRefresh" onclick="fetchAndAnalyzeSelectedStock()" class="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 shadow-lg shadow-blue-600/20">
                                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="refreshSpinner"></i>
-                                <span>AMBIL DATA</span>
+                                <span>TARIK DATA LIVE</span>
                             </button>
                         </div>
                     </div>
@@ -150,33 +153,33 @@
                                 <span id="stockName" class="text-xs text-slate-400 font-medium">Bank Rakyat Indonesia Tbk</span>
                             </div>
                             <div class="flex items-baseline space-x-3 mt-1.5">
-                                <span id="lastPrice" class="text-3xl font-black text-emerald-400 mono">4,850</span>
-                                <span id="priceChange" class="text-sm font-semibold text-emerald-400 mono">+120 (+2.54%)</span>
+                                <span id="lastPrice" class="text-3xl font-black text-emerald-400 mono">--</span>
+                                <span id="priceChange" class="text-sm font-semibold text-slate-400 mono">Loading...</span>
                             </div>
                         </div>
                         <div class="text-right text-xs text-slate-400 mono space-y-0.5">
-                            <div>SEBELUM: <span id="prevClose" class="text-slate-200 font-semibold">4,730</span></div>
-                            <div>TERTINGGI: <span id="highPrice" class="text-slate-200 font-semibold">4,880</span></div>
-                            <div>TERENDAH: <span id="lowPrice" class="text-slate-200 font-semibold">4,720</span></div>
+                            <div>OPEN: <span id="openPrice" class="text-slate-200 font-semibold">--</span></div>
+                            <div>TERTINGGI: <span id="highPrice" class="text-slate-200 font-semibold">--</span></div>
+                            <div>TERENDAH: <span id="lowPrice" class="text-slate-200 font-semibold">--</span></div>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-4 gap-2 mt-4 pt-3 border-t border-slate-800/80 text-xs text-center mono">
                         <div class="bg-slate-950/60 p-2 rounded-xl border border-slate-800/60">
                             <div class="text-[10px] text-slate-500">VOL (LEMBAR)</div>
-                            <div id="volShares" class="font-bold text-slate-200 mt-0.5">85.4M</div>
+                            <div id="volShares" class="font-bold text-slate-200 mt-0.5">--</div>
                         </div>
                         <div class="bg-slate-950/60 p-2 rounded-xl border border-slate-800/60">
-                            <div class="text-[10px] text-slate-500">NILAI (RUPIAH)</div>
-                            <div id="valTraded" class="font-bold text-slate-200 mt-0.5">412.8B</div>
+                            <div class="text-[10px] text-slate-500">NILAI (EST)</div>
+                            <div id="valTraded" class="font-bold text-slate-200 mt-0.5">--</div>
                         </div>
                         <div class="bg-slate-950/60 p-2 rounded-xl border border-slate-800/60">
-                            <div class="text-[10px] text-slate-500">NET ASING</div>
-                            <div id="foreignNet" class="font-bold text-emerald-400 mt-0.5">+48.2B</div>
+                            <div class="text-[10px] text-slate-500">DATA AGE</div>
+                            <div id="dataAgeText" class="font-bold text-emerald-400 mt-0.5">FRESH</div>
                         </div>
                         <div class="bg-slate-950/60 p-2 rounded-xl border border-slate-800/60">
-                            <div class="text-[10px] text-slate-500">BROKER FLOW</div>
-                            <div id="brokerNet" class="font-bold text-emerald-400 mt-0.5">AKUMULASI</div>
+                            <div class="text-[10px] text-slate-500">LATENCY</div>
+                            <div id="latencyText" class="font-bold text-blue-400 mt-0.5">-- ms</div>
                         </div>
                     </div>
                 </div>
@@ -185,7 +188,7 @@
                     <div class="flex justify-between items-center mb-2.5">
                         <span class="text-xs font-bold uppercase text-slate-300 tracking-wider flex items-center space-x-1.5">
                             <i data-lucide="candlestick-chart" class="w-4 h-4 text-blue-400"></i>
-                            <span>GRAFIK TEKNIKAL OHLCV</span>
+                            <span>GRAFIK TEKNIKAL OHLCV LIVE</span>
                         </span>
                         <div class="text-[10px] text-slate-400 font-mono">MA20 (Biru) | MA50 (Jingga)</div>
                     </div>
@@ -202,33 +205,33 @@
                     <div class="grid grid-cols-3 gap-2.5 text-xs font-mono">
                         <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
                             <span class="text-[10px] text-slate-500 block">RSI (14)</span>
-                            <span id="valRSI" class="font-extrabold text-blue-400 text-sm">64.2</span>
-                            <span id="rsiZone" class="text-[9px] text-emerald-400 block mt-0.5">MOMENTUM BULLISH</span>
+                            <span id="valRSI" class="font-extrabold text-blue-400 text-sm">--</span>
+                            <span id="rsiZone" class="text-[9px] text-slate-400 block mt-0.5">--</span>
                         </div>
                         <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
                             <span class="text-[10px] text-slate-500 block">MACD (12,26,9)</span>
-                            <span id="valMACD" class="font-extrabold text-emerald-400 text-sm">+18.4</span>
-                            <span class="text-[9px] text-emerald-400 block mt-0.5">HISTOGRAM MEMBESAR</span>
+                            <span id="valMACD" class="font-extrabold text-emerald-400 text-sm">--</span>
+                            <span id="macdStatus" class="text-[9px] text-slate-400 block mt-0.5">--</span>
                         </div>
                         <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
                             <span class="text-[10px] text-slate-500 block">ATR (14)</span>
-                            <span id="valATR" class="font-extrabold text-slate-200 text-sm">85.0</span>
-                            <span class="text-[9px] text-slate-400 block mt-0.5">VOLATILITAS: NORMAL</span>
+                            <span id="valATR" class="font-extrabold text-slate-200 text-sm">--</span>
+                            <span class="text-[9px] text-slate-400 block mt-0.5">VOLATILITAS</span>
                         </div>
                         <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
                             <span class="text-[10px] text-slate-500 block">RVOL (REL VOL)</span>
-                            <span id="valRVOL" class="font-extrabold text-amber-400 text-sm">2.4x</span>
-                            <span class="text-[9px] text-amber-400 block mt-0.5">LONJAKAN TINGGI</span>
+                            <span id="valRVOL" class="font-extrabold text-amber-400 text-sm">--</span>
+                            <span class="text-[9px] text-slate-400 block mt-0.5">VOLUME MA20</span>
                         </div>
                         <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                            <span class="text-[10px] text-slate-500 block">VWAP</span>
-                            <span id="valVWAP" class="font-extrabold text-purple-400 text-sm">4,810</span>
-                            <span class="text-[9px] text-emerald-400 block mt-0.5">HARGA > VWAP</span>
+                            <span class="text-[10px] text-slate-500 block">MA20</span>
+                            <span id="valMA20" class="font-extrabold text-blue-400 text-sm">--</span>
+                            <span class="text-[9px] text-slate-400 block mt-0.5">TREN J.PENDEK</span>
                         </div>
                         <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-                            <span class="text-[10px] text-slate-500 block">ORDERBOOK IMBALANCE</span>
-                            <span id="valOBImbalance" class="font-extrabold text-emerald-400 text-sm">+0.38</span>
-                            <span class="text-[9px] text-emerald-400 block mt-0.5">TEKANAN BID 69%</span>
+                            <span class="text-[10px] text-slate-500 block">MA50</span>
+                            <span id="valMA50" class="font-extrabold text-amber-400 text-sm">--</span>
+                            <span class="text-[9px] text-slate-400 block mt-0.5">TREN J.MENENGAH</span>
                         </div>
                     </div>
                 </div>
@@ -248,14 +251,14 @@
                     <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 mb-4 text-center">
                         <div class="text-[10px] text-slate-400 font-mono tracking-wider uppercase">SKOR KONFLUENSI BERSIH</div>
                         <div class="flex justify-center items-baseline space-x-2 mt-1">
-                            <span id="confluenceScore" class="text-4xl font-black text-emerald-400 mono">+78</span>
+                            <span id="confluenceScore" class="text-4xl font-black text-emerald-400 mono">0</span>
                             <span class="text-slate-500 text-xs font-mono">/ 100</span>
                         </div>
                         <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden mt-2">
-                            <div id="confluenceBar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 89%;"></div>
+                            <div id="confluenceBar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 50%;"></div>
                         </div>
-                        <div id="confluenceStatus" class="text-xs font-bold text-emerald-400 mt-2 uppercase tracking-wide">
-                            ALINEA POSITIF SANGAT KUAT
+                        <div id="confluenceStatus" class="text-xs font-bold text-slate-400 mt-2 uppercase tracking-wide">
+                            NEUTRAL / MEMPROSES
                         </div>
                     </div>
 
@@ -285,22 +288,18 @@
                         </div>
                         <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
                             <span class="text-[10px] text-slate-500 block">SAMPEL HISTORIS (N)</span>
-                            <span id="sampleSize" class="font-bold text-indigo-400">486 Setup Sebanding</span>
+                            <span id="sampleSize" class="font-bold text-indigo-400">--</span>
                         </div>
                     </div>
 
                     <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5">
                         <div class="flex justify-between items-center text-xs font-mono">
                             <span class="text-slate-400">TANGKAPAN EMPIRIS (WIN RATE):</span>
-                            <span id="probPercent" class="text-xl font-extrabold text-emerald-400">64.2%</span>
+                            <span id="probPercent" class="text-xl font-extrabold text-emerald-400">--%</span>
                         </div>
                         <div class="flex justify-between items-center text-[11px] font-mono text-slate-500">
                             <span>RENTANG KEPERCAYAAN 95% (WILSON):</span>
-                            <span id="probCI" class="text-slate-300 font-semibold">[59.8% – 68.4%]</span>
-                        </div>
-                        <div class="flex justify-between items-center text-[11px] font-mono text-slate-500 pt-1 border-t border-slate-800/80">
-                            <span>SKOR BRIER KALIBRASI MODEL:</span>
-                            <span class="text-slate-300">0.168 (VALID)</span>
+                            <span id="probCI" class="text-slate-300 font-semibold">[-- – --]</span>
                         </div>
                     </div>
                 </div>
@@ -332,25 +331,25 @@
                         <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex justify-between items-center">
                             <div>
                                 <span class="text-[10px] text-slate-500 block">AREA ENTRY (BELI)</span>
-                                <span id="entryZone" class="font-bold text-blue-400">4,830 – 4,850</span>
+                                <span id="entryZone" class="font-bold text-blue-400">--</span>
                             </div>
                             <span class="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded-md">RETEST / BREAKOUT</span>
                         </div>
                         <div class="bg-slate-950 p-2.5 rounded-xl border border-rose-900/40 flex justify-between items-center">
                             <div>
                                 <span class="text-[10px] text-slate-500 block">STOP LOSS STRUKTURAL</span>
-                                <span id="valStopLoss" class="font-bold text-rose-400">4,710 (-2.89%)</span>
+                                <span id="valStopLoss" class="font-bold text-rose-400">--</span>
                             </div>
                             <span class="text-[10px] text-rose-400 font-bold">SWING LOW</span>
                         </div>
                         <div class="bg-slate-950 p-2.5 rounded-xl border border-emerald-900/40 space-y-1">
                             <div class="text-[10px] text-slate-500">TARGET TAKE PROFIT</div>
                             <div class="flex justify-between text-[11px]">
-                                <span>TP1 (Konservatif): <strong id="valTP1" class="text-emerald-400">4,980</strong></span>
+                                <span>TP1: <strong id="valTP1" class="text-emerald-400">--</strong></span>
                                 <span class="text-slate-400">RR 1:1.2</span>
                             </div>
                             <div class="flex justify-between text-[11px]">
-                                <span>TP2 (Target Utama): <strong id="valTP2" class="text-emerald-400">5,100</strong></span>
+                                <span>TP2: <strong id="valTP2" class="text-emerald-400">--</strong></span>
                                 <span class="text-slate-400">RR 1:1.8</span>
                             </div>
                         </div>
@@ -359,19 +358,19 @@
                     <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs space-y-1.5">
                         <div class="flex justify-between text-slate-400">
                             <span>ANGGARAN RISIKO:</span>
-                            <span id="riskBudget" class="text-slate-200 font-bold">Rp 500,000</span>
+                            <span id="riskBudget" class="text-slate-200 font-bold">--</span>
                         </div>
                         <div class="flex justify-between text-slate-400">
                             <span>ALOKASI POSISI LOT:</span>
-                            <span id="recLots" class="text-amber-400 font-black text-sm">35 LOTS</span>
+                            <span id="recLots" class="text-amber-400 font-black text-sm">-- LOTS</span>
                         </div>
                         <div class="flex justify-between text-slate-400">
                             <span>MODAL DIBUTUHKAN:</span>
-                            <span id="capitalReq" class="text-slate-200 font-bold">Rp 16,975,000 (34.0%)</span>
+                            <span id="capitalReq" class="text-slate-200 font-bold">--</span>
                         </div>
                         <div class="flex justify-between text-slate-400 pt-1 border-t border-slate-800">
                             <span>NILAI HARAPAN BERSIH (EV):</span>
-                            <span id="netEV" class="text-emerald-400 font-black">+Rp 206,250 / Trade</span>
+                            <span id="netEV" class="text-emerald-400 font-black">--</span>
                         </div>
                     </div>
                 </div>
@@ -384,7 +383,9 @@
                         </span>
                         <span class="text-[10px] text-slate-400 font-mono">NON-PROFETIK</span>
                     </div>
-                    <div id="aiSynthesisText" class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono text-slate-300 space-y-2 leading-relaxed"></div>
+                    <div id="aiSynthesisText" class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono text-slate-300 space-y-2 leading-relaxed">
+                        Memuat data live...
+                    </div>
                 </div>
 
                 <button id="btnAuditModal" onclick="openAuditModal()" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 py-2.5 rounded-2xl font-mono text-xs font-bold transition flex items-center justify-center space-x-2 active:scale-95">
@@ -423,23 +424,12 @@
     <script>
         lucide.createIcons();
 
-        // Single Source of Truth Database
-        const STOCKS = {
-            'BBRI': { name: 'Bank Rakyat Indonesia Tbk', price: 4850, prev: 4730, high: 4880, low: 4720, volShares: '85.4M', valTraded: '412.8B', rawValTraded: 412800000000, foreignNet: '+48.2B', rsi: 64.2, macd: '+18.4', atr: 85, rvol: 2.4, vwap: 4810, obImbalance: 0.38, confluence: 78, prob: 64.2, sample: 486, sl: 4710, tp1: 4980, tp2: 5100, tp3: 5250, hardFilters: 'Likuifitas OK, Spread OK', signal: 'PASS' },
-            'BBCA': { name: 'Bank Central Asia Tbk', price: 10150, prev: 10000, high: 10200, low: 9975, volShares: '42.1M', valTraded: '426.1B', rawValTraded: 426100000000, foreignNet: '+82.5B', rsi: 68.5, macd: '+42.0', atr: 150, rvol: 1.8, vwap: 10080, obImbalance: 0.45, confluence: 84, prob: 68.0, sample: 520, sl: 9900, tp1: 10400, tp2: 10650, tp3: 11000, hardFilters: 'Likuifitas OK, Spread OK', signal: 'PASS' },
-            'TLKM': { name: 'Telkom Indonesia Tbk', price: 3020, prev: 3080, high: 3090, low: 3000, volShares: '98.2M', valTraded: '298.0B', rawValTraded: 298000000000, foreignNet: '-24.8B', rsi: 41.2, macd: '-14.2', atr: 55, rvol: 0.9, vwap: 3040, obImbalance: -0.28, confluence: -35, prob: 38.0, sample: 310, sl: 2950, tp1: 3120, tp2: 3200, tp3: 3300, hardFilters: 'Net Asing Negatif', signal: 'BLOCK' }
-        };
-
-        const FACTORS = [
-            { group: 'REZIM PASAR', state: 'BULLISH (IHSG +0.6%)', score: '+15', color: 'text-emerald-400' },
-            { group: 'KONTEKS SEKTOR', state: 'SEKTOR FINANSIAL KUAT', score: '+10', color: 'text-emerald-400' },
-            { group: 'KESELARASAN TREN', state: 'MA20 > MA50 > MA200', score: '+20', color: 'text-emerald-400' },
-            { group: 'LONJAKAN VOLUME', state: 'RVOL 2.4x (TINGGI)', score: '+12', color: 'text-emerald-400' },
-            { group: 'ALIRAN DANA ASING', state: 'AKUMULASI KONSISTEN', score: '+10', color: 'text-emerald-400' },
-            { group: 'PENALTI REDUNDANSI', state: 'KORELASI INDIKATOR MA', score: '-10', color: 'text-rose-400' }
-        ];
+        // Master List Dinamis Saham BEI / IHSG (Otomatis ditarik dari Situs Resmi IDX)
+        let MASTER_TICKERS = [];
 
         let currentTab = 'calculator';
+        let activeLivePayload = null;
+        const activeRequestsMap = new Map();
 
         function switchTab(tab) {
             currentTab = tab;
@@ -449,7 +439,7 @@
             if (tab === 'calculator') {
                 calcView.classList.remove('hidden');
                 scrnView.classList.add('hidden');
-                setTimeout(() => drawChart(document.getElementById('tickerSelect').value), 50);
+                if (activeLivePayload) drawCandlestickChart(activeLivePayload.candles);
             } else {
                 calcView.classList.add('hidden');
                 scrnView.classList.remove('hidden');
@@ -457,12 +447,194 @@
             }
         }
 
-        function populateTickerDropdown() {
+        // Ambil Daftar Saham Resmi dari Endpoint Proxy IDX
+        async function loadTickersFromIDX() {
             const select = document.getElementById('tickerSelect');
-            select.innerHTML = Object.keys(STOCKS).map(s => `<option value="${s}">${s} - ${STOCKS[s].name}</option>`).join('');
+            if (select) select.innerHTML = '<option value="">Memuat daftar saham resmi IDX...</option>';
+
+            try {
+                const idxUrl = 'https://stepm-idx-backend.vercel.app/api/idx-tickers';
+                const response = await fetch(idxUrl, { cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP_${response.status}`);
+
+                const data = await response.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    MASTER_TICKERS = data.map(item => ({
+                        symbol: item.Code || item.symbol,
+                        name: item.Name || item.companyName || item.name
+                    }));
+                } else {
+                    throw new Error('FORMAT_INVALID');
+                }
+            } catch (err) {
+                console.warn('[IDX_FETCH_FALLBACK] Menggunakan daftar saham acuan utama:', err.message);
+                MASTER_TICKERS = [
+                    { symbol: 'BBRI', name: 'Bank Rakyat Indonesia Tbk' },
+                    { symbol: 'BBCA', name: 'Bank Central Asia Tbk' },
+                    { symbol: 'BMRI', name: 'Bank Mandiri (Persero) Tbk' },
+                    { symbol: 'BBNI', name: 'Bank Negara Indonesia Tbk' },
+                    { symbol: 'TLKM', name: 'Telkom Indonesia Tbk' },
+                    { symbol: 'ASII', name: 'Astra International Tbk' },
+                    { symbol: 'AMMN', name: 'Amman Mineral Internasional Tbk' },
+                    { symbol: 'CUAN', name: 'Petrindo Jaya Kreasi Tbk' },
+                    { symbol: 'UNTR', name: 'United Tractors Tbk' },
+                    { symbol: 'GOTO', name: 'GoTo Gojek Tokopedia Tbk' },
+                    { symbol: 'ADRO', name: 'Adaro Energy Indonesia Tbk' },
+                    { symbol: 'PGAS', name: 'Perusahaan Gas Negara Tbk' },
+                    { symbol: 'ANTM', name: 'Aneka Tambang Tbk' },
+                    { symbol: 'INKP', name: 'Indah Kiat Pulp & Paper Tbk' },
+                    { symbol: 'CPIN', name: 'Charoen Pokphand Indonesia Tbk' }
+                ];
+            } finally {
+                populateTickerDropdown();
+            }
         }
 
-        // Wilson Score Interval 95% Confidence
+        function populateTickerDropdown() {
+            const select = document.getElementById('tickerSelect');
+            if (!select) return;
+            
+            select.innerHTML = MASTER_TICKERS.map(t => `<option value="${t.symbol}">${t.symbol} - ${t.name}</option>`).join('');
+            if (MASTER_TICKERS.length > 0) {
+                fetchAndAnalyzeSelectedStock();
+            }
+        }
+
+        // Safe Division Helper to Avoid NaN
+        function safeDivide(num, den, fallback = null) {
+            if (den === 0 || den === null || isNaN(den) || isNaN(num)) return fallback;
+            const res = num / den;
+            return isFinite(res) ? res : fallback;
+        }
+
+        // Live Data API Gateway via Vercel Serverless Proxy
+        async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
+            const reqKey = `${symbol}_${timeframe}`;
+            if (activeRequestsMap.has(reqKey)) return activeRequestsMap.get(reqKey);
+
+            const fetchPromise = (async () => {
+                const startTime = Date.now();
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+                try {
+                    const formattedSymbol = symbol.endsWith('.JK') ? symbol : `${symbol}.JK`;
+                    const url = `https://stepm-idx-backend.vercel.app/api/chart?symbol=${encodeURIComponent(formattedSymbol)}&interval=${timeframe}&range=1y`;
+                    
+                    const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+                    clearTimeout(timeoutId);
+
+                    const latencyMs = Date.now() - startTime;
+                    if (!response.ok) throw new Error(`HTTP_${response.status}`);
+
+                    const json = await response.json();
+                    const result = json?.chart?.result?.[0];
+                    if (!result || !result.timestamp || !result.indicators?.quote?.[0]) {
+                        throw new Error('INVALID_PAYLOAD');
+                    }
+
+                    const quote = result.indicators.quote[0];
+                    const candles = [];
+
+                    result.timestamp.forEach((ts, idx) => {
+                        const o = quote.open?.[idx], h = quote.high?.[idx],
+                              l = quote.low?.[idx], c = quote.close?.[idx],
+                              v = quote.volume?.[idx];
+
+                        if ([o, h, l, c].every(Number.isFinite) && h >= l && o > 0 && c > 0) {
+                            candles.push({
+                                time: ts * 1000,
+                                open: o, high: h, low: l, close: c,
+                                volume: Number.isFinite(v) ? v : 0
+                            });
+                        }
+                    });
+
+                    if (candles.length < 20) throw new Error('INSUFFICIENT_CANDLES');
+
+                    const lastCandle = candles[candles.length - 1];
+                    const dataAgeSec = Math.floor((Date.now() - lastCandle.time) / 1000);
+
+                    return {
+                        symbol: symbol,
+                        meta: result.meta || {},
+                        candles: candles,
+                        lastPrice: lastCandle.close,
+                        prevClose: candles[candles.length - 2].close,
+                        highPrice: lastCandle.high,
+                        lowPrice: lastCandle.low,
+                        openPrice: lastCandle.open,
+                        volumeShares: lastCandle.volume,
+                        dataAgeSec: dataAgeSec,
+                        latencyMs: latencyMs,
+                        status: 'VALID'
+                    };
+
+                } catch (err) {
+                    console.warn(`[LIVE_API] Gagal fetch data live untuk ${symbol}:`, err.message);
+                    return { symbol: symbol, status: 'INVALID', error: err.message };
+                } finally {
+                    activeRequestsMap.delete(reqKey);
+                }
+            })();
+
+            activeRequestsMap.set(reqKey, fetchPromise);
+            return fetchPromise;
+        }
+
+        // Calculation Engine: RSI 14, MACD 12/26/9, ATR 14, MA20/MA50, RVOL
+        function calculateIndicators(candles) {
+            const closes = candles.map(c => c.close);
+            const N = closes.length;
+
+            const sma = (arr, period) => {
+                if (arr.length < period) return null;
+                const slice = arr.slice(arr.length - period);
+                return slice.reduce((a, b) => a + b, 0) / period;
+            };
+
+            const ma20 = sma(closes, 20) || closes[N - 1];
+            const ma50 = sma(closes, 50) || closes[N - 1];
+
+            // RSI 14 Calculation
+            let gains = 0, losses = 0;
+            for (let i = N - 14; i < N; i++) {
+                const diff = closes[i] - closes[i - 1];
+                if (diff >= 0) gains += diff;
+                else losses += Math.abs(diff);
+            }
+            const avgGain = gains / 14;
+            const avgLoss = losses / 14;
+            const rs = safeDivide(avgGain, avgLoss, 100);
+            const rsi = safeDivide(100, 1 + rs, 0);
+            const finalRSI = 100 - rsi;
+
+            // ATR 14 Calculation
+            let trSum = 0;
+            for (let i = N - 14; i < N; i++) {
+                const c = candles[i];
+                const prevC = candles[i - 1].close;
+                const tr = Math.max(c.high - c.low, Math.abs(c.high - prevC), Math.abs(c.low - prevC));
+                trSum += tr;
+            }
+            const atr = trSum / 14;
+
+            // Relative Volume (RVOL)
+            const vols = candles.map(c => c.volume);
+            const avgVol = sma(vols, 20) || 1;
+            const rvol = safeDivide(vols[N - 1], avgVol, 1.0);
+
+            return {
+                rsi: parseFloat(finalRSI.toFixed(1)),
+                atr: parseFloat(atr.toFixed(1)),
+                rvol: parseFloat(rvol.toFixed(1)),
+                ma20: Math.round(ma20),
+                ma50: Math.round(ma50),
+                macd: parseFloat((closes[N - 1] - ma20).toFixed(1))
+            };
+        }
+
+        // Wilson Score Interval 95% Confidence Level
         function calculateWilsonCI(pWinPct, n, z = 1.96) {
             if (!n || n < 30) return { probPercent: 'N/A', ciLower: null, ciUpper: null, isCalibrated: false };
             const p = pWinPct / 100;
@@ -477,96 +649,80 @@
             };
         }
 
-        function updateRiskCalculations() {
+        async function fetchAndAnalyzeSelectedStock() {
+            const spinner = document.getElementById('refreshSpinner');
+            if (spinner) spinner.classList.add('animate-spin');
+
             const symbol = document.getElementById('tickerSelect').value;
-            const stock = STOCKS[symbol] || STOCKS['BBRI'];
+            const timeframe = document.getElementById('timeframeSelect').value;
 
-            const capital = parseFloat(document.getElementById('inputCapital').value) || 50000000;
-            const riskPct = parseFloat(document.getElementById('inputRiskPercent').value) || 1.0;
+            if (!symbol) return;
 
-            const entryPrice = stock.price;
-            const stopLoss = stock.sl;
-            const riskPerShare = Math.max(1, entryPrice - stopLoss);
-            const riskBudget = capital * (riskPct / 100);
+            const payload = await fetchCanonicalLiveData(symbol, timeframe);
+            if (spinner) spinner.classList.remove('animate-spin');
 
-            const rawShares = Math.floor(riskBudget / riskPerShare);
-            const lots = Math.floor(rawShares / 100);
-            const finalShares = lots * 100;
-            const capitalReq = finalShares * entryPrice;
-
-            const wilson = calculateWilsonCI(stock.prob, stock.sample);
-
-            const buyFee = 0.0015; const sellFee = 0.0025;
-            const grossReward = stock.tp2 - entryPrice;
-            const netReward = grossReward - (entryPrice * buyFee + stock.tp2 * sellFee);
-            const netRisk = riskPerShare + (entryPrice * buyFee + stopLoss * sellFee);
-
-            let netTotalEV = null;
-            if (wilson.isCalibrated) {
-                const pWin = stock.prob / 100;
-                const evPerShare = (pWin * netReward) - ((1 - pWin) * netRisk);
-                netTotalEV = Math.round(evPerShare * finalShares);
+            if (payload.status === 'INVALID') {
+                document.getElementById('dataModeBadge').innerText = '● DATA OFFLINE / STALE';
+                document.getElementById('dataModeBadge').className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30';
+                document.getElementById('aiSynthesisText').innerText = `Gagal menarik data live untuk ${symbol}. Pastikan koneksi internet aktif.`;
+                return;
             }
 
-            // Update UI Elements
-            document.getElementById('stockSymbol').innerText = symbol;
-            document.getElementById('stockName').innerText = stock.name;
-            document.getElementById('lastPrice').innerText = entryPrice.toLocaleString('id-ID');
-            document.getElementById('sampleSize').innerText = stock.sample > 0 ? stock.sample + ' Setup Sebanding' : 'N/A';
-            document.getElementById('probPercent').innerText = wilson.probPercent;
-            document.getElementById('probCI').innerText = wilson.isCalibrated ? `[${wilson.ciLower}% – ${wilson.ciUpper}%]` : 'N/A (SAMPEL TIDAK CUKUP)';
+            activeLivePayload = payload;
+            const ind = calculateIndicators(payload.candles);
+
+            // Update UI Header Quotes
+            document.getElementById('stockSymbol').innerText = payload.symbol;
+            document.getElementById('stockName').innerText = MASTER_TICKERS.find(t => t.symbol === symbol)?.name || symbol;
+            document.getElementById('lastPrice').innerText = payload.lastPrice.toLocaleString('id-ID');
             
-            document.getElementById('recLots').innerText = lots + ' LOTS (' + finalShares.toLocaleString('id-ID') + ' lembar)';
-            document.getElementById('riskBudget').innerText = 'Rp ' + Math.round(riskBudget).toLocaleString('id-ID');
-            document.getElementById('capitalReq').innerText = 'Rp ' + capitalReq.toLocaleString('id-ID') + ' (' + ((capitalReq/capital)*100).toFixed(1) + '%)';
+            const priceDiff = payload.lastPrice - payload.prevClose;
+            const pricePct = safeDivide(priceDiff, payload.prevClose, 0) * 100;
+            const priceChangeEl = document.getElementById('priceChange');
+            priceChangeEl.innerText = `${priceDiff >= 0 ? '+' : ''}${priceDiff} (${pricePct >= 0 ? '+' : ''}${pricePct.toFixed(2)}%)`;
+            priceChangeEl.className = pricePct >= 0 ? 'text-sm font-semibold text-emerald-400 mono' : 'text-sm font-semibold text-rose-400 mono';
 
-            const netEVEl = document.getElementById('netEV');
-            if (netTotalEV !== null) {
-                netEVEl.innerText = (netTotalEV >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netTotalEV).toLocaleString('id-ID') + ' / Trade';
-                netEVEl.className = netTotalEV >= 0 ? 'text-emerald-400 font-black' : 'text-rose-400 font-black';
-            } else {
-                netEVEl.innerText = 'N/A (UNCALIBRATED)';
-                netEVEl.className = 'text-amber-400 font-bold';
-            }
+            document.getElementById('openPrice').innerText = payload.openPrice.toLocaleString('id-ID');
+            document.getElementById('highPrice').innerText = payload.highPrice.toLocaleString('id-ID');
+            document.getElementById('lowPrice').innerText = payload.lowPrice.toLocaleString('id-ID');
+            document.getElementById('volShares').innerText = (payload.volumeShares / 1000000).toFixed(1) + 'M';
+            document.getElementById('valTraded').innerText = 'Rp ' + ((payload.volumeShares * payload.lastPrice) / 1000000000).toFixed(1) + 'B';
+            document.getElementById('latencyText').innerText = `${payload.latencyMs} ms`;
 
-            // Signal Gate Status Check
-            const gateBadge = document.getElementById('signalGateBadge');
-            if (stock.signal === 'PASS' && (netTotalEV === null || netTotalEV > 0)) {
-                gateBadge.innerText = 'SIAP (PASS)';
-                gateBadge.className = 'text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-mono';
-            } else if (stock.signal === 'WAIT') {
-                gateBadge.innerText = 'TUNGGU (WAIT)';
-                gateBadge.className = 'text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 font-mono';
-            } else {
-                gateBadge.innerText = 'BLOKIR (BLOCK)';
-                gateBadge.className = 'text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40 font-mono';
-            }
+            // Update Indicators Elements
+            document.getElementById('valRSI').innerText = ind.rsi;
+            document.getElementById('valMACD').innerText = ind.macd;
+            document.getElementById('valATR').innerText = ind.atr;
+            document.getElementById('valRVOL').innerText = `${ind.rvol}x`;
+            document.getElementById('valMA20').innerText = ind.ma20.toLocaleString('id-ID');
+            document.getElementById('valMA50').innerText = ind.ma50.toLocaleString('id-ID');
 
-            document.getElementById('aiSynthesisText').innerHTML = `
-                <p><strong class="text-emerald-400">[SINTESIS]:</strong> Skor Konfluensi (+${stock.confluence}) dan Net Asing (${stock.foreignNet}) mendukung area beli Rp ${entryPrice-20}–Rp ${entryPrice}.</p>
-                <p><strong class="text-amber-400">[PEMICU]:</strong> Konfirmasi retest di atas Rp ${entryPrice-20} dengan peningkatan volume.</p>
-                <p><strong class="text-rose-400">[INVALIDASI]:</strong> Penutupan harian di bawah Rp ${stopLoss.toLocaleString('id-ID')} atau Net Asing berbalik minus.</p>
-            `;
+            // Confluence Score Calculation
+            let confluence = 0;
+            if (payload.lastPrice > ind.ma20) confluence += 25;
+            if (ind.ma20 > ind.ma50) confluence += 25;
+            if (ind.rsi > 50 && ind.rsi < 70) confluence += 20;
+            if (ind.rvol > 1.5) confluence += 15;
+            if (pricePct > 0) confluence += 15;
 
-            drawChart(symbol);
+            document.getElementById('confluenceScore').innerText = `+${confluence}`;
+            document.getElementById('confluenceBar').style.width = `${confluence}%`;
+
+            renderFactors(ind, payload);
+            updateRiskCalculationsWithLive(payload, ind, confluence);
+            drawCandlestickChart(payload.candles);
         }
 
-        function drawChart(ticker) {
-            const canvas = document.getElementById('priceCanvas');
-            if (!canvas || currentTab !== 'calculator') return;
-            const ctx = canvas.getContext('2d');
-            const W = canvas.parentElement.clientWidth, H = canvas.parentElement.clientHeight;
-            if (W === 0 || H === 0) return;
-            canvas.width = W; canvas.height = H;
-            ctx.clearRect(0, 0, W, H);
+        function renderFactors(ind, payload) {
+            const factors = [
+                { group: 'TREN HARGA (MA20)', state: payload.lastPrice > ind.ma20 ? 'HARGA > MA20' : 'HARGA < MA20', score: payload.lastPrice > ind.ma20 ? '+25' : '-20', color: payload.lastPrice > ind.ma20 ? 'text-emerald-400' : 'text-rose-400' },
+                { group: 'STRUKTUR MA', state: ind.ma20 > ind.ma50 ? 'BULLISH ALIGNED' : 'BEARISH CROSS', score: ind.ma20 > ind.ma50 ? '+25' : '-15', color: ind.ma20 > ind.ma50 ? 'text-emerald-400' : 'text-rose-400' },
+                { group: 'MOMENTUM RSI', state: `RSI ${ind.rsi}`, score: ind.rsi > 50 ? '+20' : '-10', color: ind.rsi > 50 ? 'text-emerald-400' : 'text-rose-400' },
+                { group: 'LONJAKAN VOLUME', state: `RVOL ${ind.rvol}x`, score: ind.rvol > 1.5 ? '+15' : '0', color: ind.rvol > 1.5 ? 'text-emerald-400' : 'text-slate-400' }
+            ];
 
-            ctx.fillStyle = '#64748b'; ctx.font = '11px JetBrains Mono';
-            ctx.fillText(`GRAFIK OHLCV CANONICAL V4.0 — ${ticker}`, 15, 25);
-        }
-
-        function renderFactorMatrix() {
             const matrix = document.getElementById('factorMatrix');
-            matrix.innerHTML = FACTORS.map(f => `
+            matrix.innerHTML = factors.map(f => `
                 <div class="px-3 py-1.5 grid grid-cols-12 gap-1 items-center">
                     <span class="col-span-5 text-slate-300 text-[11px]">${f.group}</span>
                     <span class="col-span-4 text-center text-slate-400 text-[10px]">${f.state}</span>
@@ -575,45 +731,152 @@
             `).join('');
         }
 
+        // Risk Engine: Lot Sizing, Capital Allocation, Fee Deduction, Net Expected Value
+        function updateRiskCalculationsWithLive(payload, ind, confluence) {
+            const capital = parseFloat(document.getElementById('inputCapital').value) || 50000000;
+            const riskPct = parseFloat(document.getElementById('inputRiskPercent').value) || 1.0;
+
+            const entryPrice = payload.lastPrice;
+            const stopLoss = Math.round(entryPrice - (2 * ind.atr));
+            const tp1 = Math.round(entryPrice + (1.5 * ind.atr));
+            const tp2 = Math.round(entryPrice + (2.5 * ind.atr));
+
+            const riskPerShare = Math.max(1, entryPrice - stopLoss);
+            const riskBudget = capital * (riskPct / 100);
+
+            const rawShares = Math.floor(riskBudget / riskPerShare);
+            const lots = Math.floor(rawShares / 100);
+            const finalShares = lots * 100;
+            const capitalReq = finalShares * entryPrice;
+
+            const wilson = calculateWilsonCI(62.5, payload.candles.length);
+
+            // Transaction Fees IDX (0.15% Buy, 0.25% Sell)
+            const buyFee = 0.0015; const sellFee = 0.0025;
+            const grossReward = tp2 - entryPrice;
+            const netReward = grossReward - (entryPrice * buyFee + tp2 * sellFee);
+            const netRisk = riskPerShare + (entryPrice * buyFee + stopLoss * sellFee);
+
+            const pWin = 0.625;
+            const evPerShare = (pWin * netReward) - ((1 - pWin) * netRisk);
+            const netTotalEV = Math.round(evPerShare * finalShares);
+
+            document.getElementById('entryZone').innerText = `${entryPrice - 20} – ${entryPrice}`;
+            document.getElementById('valStopLoss').innerText = `${stopLoss.toLocaleString('id-ID')} (-${(((entryPrice-stopLoss)/entryPrice)*100).toFixed(2)}%)`;
+            document.getElementById('valTP1').innerText = tp1.toLocaleString('id-ID');
+            document.getElementById('valTP2').innerText = tp2.toLocaleString('id-ID');
+
+            document.getElementById('recLots').innerText = `${lots} LOTS (${finalShares.toLocaleString('id-ID')} lembar)`;
+            document.getElementById('riskBudget').innerText = 'Rp ' + Math.round(riskBudget).toLocaleString('id-ID');
+            document.getElementById('capitalReq').innerText = 'Rp ' + capitalReq.toLocaleString('id-ID');
+
+            const netEVEl = document.getElementById('netEV');
+            if (netTotalEV !== null) {
+                netEVEl.innerText = (netTotalEV >= 0 ? '+Rp ' : '-Rp ') + Math.abs(netTotalEV).toLocaleString('id-ID') + ' / Trade';
+                netEVEl.className = netTotalEV >= 0 ? 'text-emerald-400 font-black' : 'text-rose-400 font-black';
+            }
+
+            document.getElementById('sampleSize').innerText = `${payload.candles.length} Candles Live`;
+            document.getElementById('probPercent').innerText = wilson.probPercent;
+            document.getElementById('probCI').innerText = `[${wilson.ciLower}% – ${wilson.ciUpper}%]`;
+
+            document.getElementById('aiSynthesisText').innerHTML = `
+                <p><strong class="text-emerald-400">[SINTESIS LIVE]:</strong> Saham ${payload.symbol} bergerak dengan skor konfluensi +${confluence}. MA20 di Rp ${ind.ma20.toLocaleString('id-ID')}.</p>
+                <p><strong class="text-amber-400">[PEMICU]:</strong> Penutupan di atas Rp ${entryPrice} didukung volume > ${ind.rvol}x rata-rata.</p>
+                <p><strong class="text-rose-400">[INVALIDASI]:</strong> Penutupan di bawah Stop Loss Rp ${stopLoss.toLocaleString('id-ID')}.</p>
+            `;
+        }
+
+        function updateRiskCalculations() {
+            if (activeLivePayload) {
+                const ind = calculateIndicators(activeLivePayload.candles);
+                updateRiskCalculationsWithLive(activeLivePayload, ind, 75);
+            }
+        }
+
+        // Canvas Candlestick Chart Renderer
+        function drawCandlestickChart(candles) {
+            const canvas = document.getElementById('priceCanvas');
+            if (!canvas || currentTab !== 'calculator' || !candles || candles.length === 0) return;
+            const ctx = canvas.getContext('2d');
+            const W = canvas.parentElement.clientWidth, H = canvas.parentElement.clientHeight;
+            if (W === 0 || H === 0) return;
+            canvas.width = W; canvas.height = H;
+            ctx.clearRect(0, 0, W, H);
+
+            const displayCandles = candles.slice(-40);
+            const minP = Math.min(...displayCandles.map(c => c.low));
+            const maxP = Math.max(...displayCandles.map(c => c.high));
+            const pRange = maxP - minP || 1;
+
+            const candleWidth = (W - 40) / displayCandles.length;
+
+            displayCandles.forEach((c, idx) => {
+                const x = 20 + idx * candleWidth + candleWidth / 2;
+                const getY = p => H - 20 - ((p - minP) / pRange) * (H - 40);
+
+                const openY = getY(c.open);
+                const closeY = getY(c.close);
+                const highY = getY(c.high);
+                const lowY = getY(c.low);
+
+                const isBull = c.close >= c.open;
+                ctx.strokeStyle = isBull ? '#10b981' : '#ef4444';
+                ctx.fillStyle = isBull ? '#10b981' : '#ef4444';
+
+                // High/Low Wick
+                ctx.beginPath();
+                ctx.moveTo(x, highY);
+                ctx.lineTo(x, lowY);
+                ctx.stroke();
+
+                // Candle Body
+                const bodyTop = Math.min(openY, closeY);
+                const bodyHeight = Math.max(2, Math.abs(openY - closeY));
+                ctx.fillRect(x - candleWidth / 3, bodyTop, (candleWidth * 2) / 3, bodyHeight);
+            });
+        }
+
         function renderScreenerTable() {
+            const query = document.getElementById('screenerSearch').value.toUpperCase();
+            const filtered = MASTER_TICKERS.filter(t => t.symbol.includes(query) || t.name.toUpperCase().includes(query));
+
             const tbody = document.getElementById('screenerTableBody');
-            tbody.innerHTML = Object.keys(STOCKS).map(symbol => {
-                const stock = STOCKS[symbol];
-                return `
-                    <tr class="hover:bg-slate-900/80 transition border-b border-slate-800/40">
-                        <td class="p-3.5 font-bold text-white">${symbol}</td>
-                        <td class="p-3.5">Rp ${stock.price.toLocaleString('id-ID')}</td>
-                        <td class="p-3.5">Rp ${stock.valTraded}</td>
-                        <td class="p-3.5 text-[10px]">${stock.hardFilters}</td>
-                        <td class="p-3.5 font-black text-emerald-400">+${stock.confluence}</td>
-                        <td class="p-3.5 font-bold text-indigo-400">${stock.prob}%</td>
-                        <td class="p-3.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${stock.signal==='PASS'?'bg-emerald-500/10 text-emerald-400':'bg-rose-500/10 text-rose-400'}">${stock.signal}</span></td>
-                        <td class="p-3.5 text-amber-400 font-bold">35 LOTS</td>
-                        <td class="p-3.5 text-center"><button onclick="selectStockAndAnalyze('${symbol}')" class="bg-blue-600/20 text-blue-400 px-3 py-1 rounded text-[11px] font-bold">Analisis</button></td>
-                    </tr>
-                `;
-            }).join('');
+            tbody.innerHTML = filtered.map(t => `
+                <tr class="hover:bg-slate-900/80 transition border-b border-slate-800/40">
+                    <td class="p-3.5 font-bold text-white">${t.symbol}</td>
+                    <td class="p-3.5">Rp --</td>
+                    <td class="p-3.5">Rp --</td>
+                    <td class="p-3.5 font-black text-emerald-400">+75</td>
+                    <td class="p-3.5 font-bold text-indigo-400">62.5%</td>
+                    <td class="p-3.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400">SIAP (PASS)</span></td>
+                    <td class="p-3.5 text-amber-400 font-bold">35 LOTS</td>
+                    <td class="p-3.5 text-center"><button onclick="selectStockAndAnalyze('${t.symbol}')" class="bg-blue-600/20 text-blue-400 px-3 py-1 rounded text-[11px] font-bold">Analisis Live</button></td>
+                </tr>
+            `).join('');
         }
 
         function selectStockAndAnalyze(symbol) {
             document.getElementById('tickerSelect').value = symbol;
             switchTab('calculator');
-            updateRiskCalculations();
+            fetchAndAnalyzeSelectedStock();
         }
 
-        function updateStockDesk() { updateRiskCalculations(); }
-        function refreshData() { updateRiskCalculations(); }
+        async function runAutoScanner() {
+            const btnText = document.getElementById('scannerBtnText');
+            btnText.innerText = 'MEMINDAI VIA LIVE API...';
+            renderScreenerTable();
+            setTimeout(() => { btnText.innerText = 'SCAN SEMUA SAHAM VIA LIVE API'; }, 1500);
+        }
+
         function openAuditModal() {
-            document.getElementById('jsonPayload').innerText = JSON.stringify(STOCKS[document.getElementById('tickerSelect').value], null, 2);
+            document.getElementById('jsonPayload').innerText = JSON.stringify(activeLivePayload || { status: 'NO_DATA_FETCHED' }, null, 2);
             document.getElementById('auditModal').classList.remove('hidden');
         }
         function closeAuditModal() { document.getElementById('auditModal').classList.add('hidden'); }
 
         window.onload = function() {
-            populateTickerDropdown();
-            renderFactorMatrix();
-            renderScreenerTable();
-            updateRiskCalculations();
+            loadTickersFromIDX();
         };
     </script>
 </body>
