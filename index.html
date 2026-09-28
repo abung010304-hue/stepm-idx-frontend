@@ -154,7 +154,7 @@
                             </div>
                             <div class="flex items-baseline space-x-3 mt-1.5">
                                 <span id="lastPrice" class="text-3xl font-black text-emerald-400 mono">--</span>
-                                <span id="priceChange" class="text-sm font-semibold text-slate-400 mono">Loading...</span>
+                                <span id="priceChange" class="text-sm font-semibold text-slate-400 mono">Memuat...</span>
                             </div>
                         </div>
                         <div class="text-right text-xs text-slate-400 mono space-y-0.5">
@@ -424,8 +424,24 @@
     <script>
         lucide.createIcons();
 
-        // Master List Dinamis Saham BEI / IHSG (Otomatis ditarik dari Situs Resmi IDX)
-        let MASTER_TICKERS = [];
+        // Master List Saham BEI / IHSG (Tersedia Instan sejak Awal)
+        let MASTER_TICKERS = [
+            { symbol: 'BBRI', name: 'Bank Rakyat Indonesia Tbk' },
+            { symbol: 'BBCA', name: 'Bank Central Asia Tbk' },
+            { symbol: 'BMRI', name: 'Bank Mandiri (Persero) Tbk' },
+            { symbol: 'BBNI', name: 'Bank Negara Indonesia Tbk' },
+            { symbol: 'TLKM', name: 'Telkom Indonesia Tbk' },
+            { symbol: 'ASII', name: 'Astra International Tbk' },
+            { symbol: 'AMMN', name: 'Amman Mineral Internasional Tbk' },
+            { symbol: 'CUAN', name: 'Petrindo Jaya Kreasi Tbk' },
+            { symbol: 'UNTR', name: 'United Tractors Tbk' },
+            { symbol: 'GOTO', name: 'GoTo Gojek Tokopedia Tbk' },
+            { symbol: 'ADRO', name: 'Adaro Energy Indonesia Tbk' },
+            { symbol: 'PGAS', name: 'Perusahaan Gas Negara Tbk' },
+            { symbol: 'ANTM', name: 'Aneka Tambang Tbk' },
+            { symbol: 'INKP', name: 'Indah Kiat Pulp & Paper Tbk' },
+            { symbol: 'CPIN', name: 'Charoen Pokphand Indonesia Tbk' }
+        ];
 
         let currentTab = 'calculator';
         let activeLivePayload = null;
@@ -447,44 +463,22 @@
             }
         }
 
-        // Ambil Daftar Saham Resmi dari Endpoint Proxy IDX
+        // Memuat Daftar Ticker Tambahan dari Backend Jika Ada
         async function loadTickersFromIDX() {
-            const select = document.getElementById('tickerSelect');
-            if (select) select.innerHTML = '<option value="">Memuat daftar saham resmi IDX...</option>';
-
             try {
                 const idxUrl = 'https://stepm-idx-backend.vercel.app/api/idx-tickers';
                 const response = await fetch(idxUrl, { cache: 'no-store' });
-                if (!response.ok) throw new Error(`HTTP_${response.status}`);
-
-                const data = await response.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    MASTER_TICKERS = data.map(item => ({
-                        symbol: item.Code || item.symbol,
-                        name: item.Name || item.companyName || item.name
-                    }));
-                } else {
-                    throw new Error('FORMAT_INVALID');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (Array.isArray(data) && data.length > 0) {
+                        MASTER_TICKERS = data.map(item => ({
+                            symbol: item.Code || item.symbol,
+                            name: item.Name || item.companyName || item.name
+                        }));
+                    }
                 }
             } catch (err) {
-                console.warn('[IDX_FETCH_FALLBACK] Menggunakan daftar saham acuan utama:', err.message);
-                MASTER_TICKERS = [
-                    { symbol: 'BBRI', name: 'Bank Rakyat Indonesia Tbk' },
-                    { symbol: 'BBCA', name: 'Bank Central Asia Tbk' },
-                    { symbol: 'BMRI', name: 'Bank Mandiri (Persero) Tbk' },
-                    { symbol: 'BBNI', name: 'Bank Negara Indonesia Tbk' },
-                    { symbol: 'TLKM', name: 'Telkom Indonesia Tbk' },
-                    { symbol: 'ASII', name: 'Astra International Tbk' },
-                    { symbol: 'AMMN', name: 'Amman Mineral Internasional Tbk' },
-                    { symbol: 'CUAN', name: 'Petrindo Jaya Kreasi Tbk' },
-                    { symbol: 'UNTR', name: 'United Tractors Tbk' },
-                    { symbol: 'GOTO', name: 'GoTo Gojek Tokopedia Tbk' },
-                    { symbol: 'ADRO', name: 'Adaro Energy Indonesia Tbk' },
-                    { symbol: 'PGAS', name: 'Perusahaan Gas Negara Tbk' },
-                    { symbol: 'ANTM', name: 'Aneka Tambang Tbk' },
-                    { symbol: 'INKP', name: 'Indah Kiat Pulp & Paper Tbk' },
-                    { symbol: 'CPIN', name: 'Charoen Pokphand Indonesia Tbk' }
-                ];
+                console.warn('[IDX_FETCH] Menggunakan daftar saham bawaan:', err.message);
             } finally {
                 populateTickerDropdown();
             }
@@ -494,103 +488,105 @@
             const select = document.getElementById('tickerSelect');
             if (!select) return;
             
+            const currentVal = select.value;
             select.innerHTML = MASTER_TICKERS.map(t => `<option value="${t.symbol}">${t.symbol} - ${t.name}</option>`).join('');
-            if (MASTER_TICKERS.length > 0) {
-                fetchAndAnalyzeSelectedStock();
+            
+            if (currentVal && MASTER_TICKERS.some(t => t.symbol === currentVal)) {
+                select.value = currentVal;
             }
         }
 
-        // Safe Division Helper to Avoid NaN
+        // Helper Pembagian Aman (Cegah NaN)
         function safeDivide(num, den, fallback = null) {
             if (den === 0 || den === null || isNaN(den) || isNaN(num)) return fallback;
             const res = num / den;
             return isFinite(res) ? res : fallback;
         }
 
-        // Live Data API Gateway via Vercel Serverless Proxy
-        // Live Data API Gateway langsung via Yahoo Finance + CORS Proxy
-async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
-    const reqKey = `${symbol}_${timeframe}`;
-    if (activeRequestsMap.has(reqKey)) return activeRequestsMap.get(reqKey);
+        // Live Data Gateway dengan Dual Proxy Fallback (Sangat Handal)
+        async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
+            const reqKey = `${symbol}_${timeframe}`;
+            if (activeRequestsMap.has(reqKey)) return activeRequestsMap.get(reqKey);
 
-    const fetchPromise = (async () => {
-        const startTime = Date.now();
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 12000);
+            const fetchPromise = (async () => {
+                const startTime = Date.now();
+                const formattedSymbol = symbol.endsWith('.JK') ? symbol : `${symbol}.JK`;
 
-        try {
-            const formattedSymbol = symbol.endsWith('.JK') ? symbol : `${symbol}.JK`;
-            
-            // Menggunakan Yahoo Finance V8 API langsung via CORS Proxy publik
-            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(formattedSymbol)}?interval=${timeframe}&range=1y`;
-            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+                // Daftar URL proxy pengganti untuk jaminan berhasil
+                const proxyUrls = [
+                    `https://stepm-idx-backend.vercel.app/api/chart?symbol=${encodeURIComponent(formattedSymbol)}&interval=${timeframe}&range=1y`,
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${formattedSymbol}?interval=${timeframe}&range=1y`)}`
+                ];
 
-            const response = await fetch(proxyUrl, { signal: controller.signal, cache: 'no-store' });
-            clearTimeout(timeoutId);
+                for (const url of proxyUrls) {
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-            const latencyMs = Date.now() - startTime;
-            if (!response.ok) throw new Error(`HTTP_${response.status}`);
+                        const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+                        clearTimeout(timeoutId);
 
-            const json = await response.json();
-            const result = json?.chart?.result?.[0];
-            if (!result || !result.timestamp || !result.indicators?.quote?.[0]) {
-                throw new Error('INVALID_PAYLOAD');
-            }
+                        if (!response.ok) continue;
 
-            const quote = result.indicators.quote[0];
-            const candles = [];
+                        const json = await response.json();
+                        const result = json?.chart?.result?.[0];
+                        if (!result || !result.timestamp || !result.indicators?.quote?.[0]) continue;
 
-            result.timestamp.forEach((ts, idx) => {
-                const o = quote.open?.[idx], h = quote.high?.[idx],
-                      l = quote.low?.[idx], c = quote.close?.[idx],
-                      v = quote.volume?.[idx];
+                        const quote = result.indicators.quote[0];
+                        const candles = [];
 
-                if ([o, h, l, c].every(Number.isFinite) && h >= l && o > 0 && c > 0) {
-                    candles.push({
-                        time: ts * 1000,
-                        open: o, high: h, low: l, close: c,
-                        volume: Number.isFinite(v) ? v : 0
-                    });
+                        result.timestamp.forEach((ts, idx) => {
+                            const o = quote.open?.[idx], h = quote.high?.[idx],
+                                  l = quote.low?.[idx], c = quote.close?.[idx],
+                                  v = quote.volume?.[idx];
+
+                            if ([o, h, l, c].every(Number.isFinite) && h >= l && o > 0 && c > 0) {
+                                candles.push({
+                                    time: ts * 1000,
+                                    open: o, high: h, low: l, close: c,
+                                    volume: Number.isFinite(v) ? v : 0
+                                });
+                            }
+                        });
+
+                        if (candles.length < 10) continue;
+
+                        const lastCandle = candles[candles.length - 1];
+                        const latencyMs = Date.now() - startTime;
+
+                        document.getElementById('dataModeBadge').innerText = '● LIVE API FEED READY';
+                        document.getElementById('dataModeBadge').className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
+
+                        return {
+                            symbol: symbol,
+                            meta: result.meta || {},
+                            candles: candles,
+                            lastPrice: lastCandle.close,
+                            prevClose: candles[candles.length - 2] ? candles[candles.length - 2].close : lastCandle.open,
+                            highPrice: lastCandle.high,
+                            lowPrice: lastCandle.low,
+                            openPrice: lastCandle.open,
+                            volumeShares: lastCandle.volume,
+                            latencyMs: latencyMs,
+                            status: 'VALID'
+                        };
+                    } catch (e) {
+                        console.warn(`Proxy gagal (${url}), mencoba opsi berikutnya...`);
+                    }
                 }
-            });
 
-            if (candles.length < 20) throw new Error('INSUFFICIENT_CANDLES');
+                return { symbol: symbol, status: 'INVALID', error: 'ALL_PROXIES_FAILED' };
+            })();
 
-            const lastCandle = candles[candles.length - 1];
-            const dataAgeSec = Math.floor((Date.now() - lastCandle.time) / 1000);
-
-            // Update Badge jika sukses
-            document.getElementById('dataModeBadge').innerText = '● LIVE API FEED READY';
-            document.getElementById('dataModeBadge').className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
-
-            return {
-                symbol: symbol,
-                meta: result.meta || {},
-                candles: candles,
-                lastPrice: lastCandle.close,
-                prevClose: candles[candles.length - 2] ? candles[candles.length - 2].close : lastCandle.open,
-                highPrice: lastCandle.high,
-                lowPrice: lastCandle.low,
-                openPrice: lastCandle.open,
-                volumeShares: lastCandle.volume,
-                dataAgeSec: dataAgeSec,
-                latencyMs: latencyMs,
-                status: 'VALID'
-            };
-
-        } catch (err) {
-            console.warn(`[LIVE_API] Gagal fetch data live untuk ${symbol}:`, err.message);
-            return { symbol: symbol, status: 'INVALID', error: err.message };
-        } finally {
-            activeRequestsMap.delete(reqKey);
+            activeRequestsMap.set(reqKey, fetchPromise);
+            try {
+                return await fetchPromise;
+            } finally {
+                activeRequestsMap.delete(reqKey);
+            }
         }
-    })();
 
-    activeRequestsMap.set(reqKey, fetchPromise);
-    return fetchPromise;
-}
-
-        // Calculation Engine: RSI 14, MACD 12/26/9, ATR 14, MA20/MA50, RVOL
+        // Engine Indikator Teknis: RSI, MACD, ATR, MA20/50, RVOL
         function calculateIndicators(candles) {
             const closes = candles.map(c => c.close);
             const N = closes.length;
@@ -604,36 +600,36 @@ async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
             const ma20 = sma(closes, 20) || closes[N - 1];
             const ma50 = sma(closes, 50) || closes[N - 1];
 
-            // RSI 14 Calculation
+            // RSI 14
             let gains = 0, losses = 0;
-            for (let i = N - 14; i < N; i++) {
+            const lookback = Math.min(14, N - 1);
+            for (let i = N - lookback; i < N; i++) {
                 const diff = closes[i] - closes[i - 1];
                 if (diff >= 0) gains += diff;
                 else losses += Math.abs(diff);
             }
-            const avgGain = gains / 14;
-            const avgLoss = losses / 14;
+            const avgGain = gains / lookback;
+            const avgLoss = losses / lookback;
             const rs = safeDivide(avgGain, avgLoss, 100);
-            const rsi = safeDivide(100, 1 + rs, 0);
-            const finalRSI = 100 - rsi;
+            const rsi = 100 - safeDivide(100, 1 + rs, 0);
 
-            // ATR 14 Calculation
+            // ATR 14
             let trSum = 0;
-            for (let i = N - 14; i < N; i++) {
+            for (let i = N - lookback; i < N; i++) {
                 const c = candles[i];
                 const prevC = candles[i - 1].close;
                 const tr = Math.max(c.high - c.low, Math.abs(c.high - prevC), Math.abs(c.low - prevC));
                 trSum += tr;
             }
-            const atr = trSum / 14;
+            const atr = trSum / lookback;
 
-            // Relative Volume (RVOL)
+            // RVOL
             const vols = candles.map(c => c.volume);
             const avgVol = sma(vols, 20) || 1;
             const rvol = safeDivide(vols[N - 1], avgVol, 1.0);
 
             return {
-                rsi: parseFloat(finalRSI.toFixed(1)),
+                rsi: parseFloat(rsi.toFixed(1)),
                 atr: parseFloat(atr.toFixed(1)),
                 rvol: parseFloat(rvol.toFixed(1)),
                 ma20: Math.round(ma20),
@@ -644,7 +640,7 @@ async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
 
         // Wilson Score Interval 95% Confidence Level
         function calculateWilsonCI(pWinPct, n, z = 1.96) {
-            if (!n || n < 30) return { probPercent: 'N/A', ciLower: null, ciUpper: null, isCalibrated: false };
+            if (!n || n < 10) return { probPercent: 'N/A', ciLower: null, ciUpper: null, isCalibrated: false };
             const p = pWinPct / 100;
             const denom = 1 + (z * z) / n;
             const center = (p + (z * z) / (2 * n)) / denom;
@@ -661,10 +657,9 @@ async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
             const spinner = document.getElementById('refreshSpinner');
             if (spinner) spinner.classList.add('animate-spin');
 
-            const symbol = document.getElementById('tickerSelect').value;
+            const symbolSelect = document.getElementById('tickerSelect');
+            const symbol = symbolSelect.value || 'BBRI';
             const timeframe = document.getElementById('timeframeSelect').value;
-
-            if (!symbol) return;
 
             const payload = await fetchCanonicalLiveData(symbol, timeframe);
             if (spinner) spinner.classList.remove('animate-spin');
@@ -679,7 +674,7 @@ async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
             activeLivePayload = payload;
             const ind = calculateIndicators(payload.candles);
 
-            // Update UI Header Quotes
+            // Update UI Quotes
             document.getElementById('stockSymbol').innerText = payload.symbol;
             document.getElementById('stockName').innerText = MASTER_TICKERS.find(t => t.symbol === symbol)?.name || symbol;
             document.getElementById('lastPrice').innerText = payload.lastPrice.toLocaleString('id-ID');
@@ -697,7 +692,7 @@ async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
             document.getElementById('valTraded').innerText = 'Rp ' + ((payload.volumeShares * payload.lastPrice) / 1000000000).toFixed(1) + 'B';
             document.getElementById('latencyText').innerText = `${payload.latencyMs} ms`;
 
-            // Update Indicators Elements
+            // Update Indicators
             document.getElementById('valRSI').innerText = ind.rsi;
             document.getElementById('valMACD').innerText = ind.macd;
             document.getElementById('valATR').innerText = ind.atr;
@@ -705,7 +700,7 @@ async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
             document.getElementById('valMA20').innerText = ind.ma20.toLocaleString('id-ID');
             document.getElementById('valMA50').innerText = ind.ma50.toLocaleString('id-ID');
 
-            // Confluence Score Calculation
+            // Confluence Score
             let confluence = 0;
             if (payload.lastPrice > ind.ma20) confluence += 25;
             if (ind.ma20 > ind.ma50) confluence += 25;
@@ -739,7 +734,7 @@ async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
             `).join('');
         }
 
-        // Risk Engine: Lot Sizing, Capital Allocation, Fee Deduction, Net Expected Value
+        // Engine Sizing & Risiko
         function updateRiskCalculationsWithLive(payload, ind, confluence) {
             const capital = parseFloat(document.getElementById('inputCapital').value) || 50000000;
             const riskPct = parseFloat(document.getElementById('inputRiskPercent').value) || 1.0;
@@ -759,7 +754,6 @@ async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
 
             const wilson = calculateWilsonCI(62.5, payload.candles.length);
 
-            // Transaction Fees IDX (0.15% Buy, 0.25% Sell)
             const buyFee = 0.0015; const sellFee = 0.0025;
             const grossReward = tp2 - entryPrice;
             const netReward = grossReward - (entryPrice * buyFee + tp2 * sellFee);
@@ -802,14 +796,17 @@ async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
             }
         }
 
-        // Canvas Candlestick Chart Renderer
+        // Chart Candlestick Canvas Renderer
         function drawCandlestickChart(candles) {
             const canvas = document.getElementById('priceCanvas');
             if (!canvas || currentTab !== 'calculator' || !candles || candles.length === 0) return;
             const ctx = canvas.getContext('2d');
-            const W = canvas.parentElement.clientWidth, H = canvas.parentElement.clientHeight;
-            if (W === 0 || H === 0) return;
-            canvas.width = W; canvas.height = H;
+            
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const W = rect.width || 400;
+            const H = rect.height || 240;
+            canvas.width = W; 
+            canvas.height = H;
             ctx.clearRect(0, 0, W, H);
 
             const displayCandles = candles.slice(-40);
@@ -883,7 +880,10 @@ async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
         }
         function closeAuditModal() { document.getElementById('auditModal').classList.add('hidden'); }
 
+        // Eksekusi Inisialisasi Aplikasi Saat Halaman Dibuka
         window.onload = function() {
+            populateTickerDropdown();
+            fetchAndAnalyzeSelectedStock();
             loadTickersFromIDX();
         };
     </script>
