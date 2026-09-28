@@ -508,79 +508,87 @@
         }
 
         // Live Data API Gateway via Vercel Serverless Proxy
-        async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
-            const reqKey = `${symbol}_${timeframe}`;
-            if (activeRequestsMap.has(reqKey)) return activeRequestsMap.get(reqKey);
+        // Live Data API Gateway langsung via Yahoo Finance + CORS Proxy
+async function fetchCanonicalLiveData(symbol, timeframe = '1d') {
+    const reqKey = `${symbol}_${timeframe}`;
+    if (activeRequestsMap.has(reqKey)) return activeRequestsMap.get(reqKey);
 
-            const fetchPromise = (async () => {
-                const startTime = Date.now();
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const fetchPromise = (async () => {
+        const startTime = Date.now();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-                try {
-                    const formattedSymbol = symbol.endsWith('.JK') ? symbol : `${symbol}.JK`;
-                    const url = `https://stepm-idx-backend.vercel.app/api/chart?symbol=${encodeURIComponent(formattedSymbol)}&interval=${timeframe}&range=1y`;
-                    
-                    const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-                    clearTimeout(timeoutId);
+        try {
+            const formattedSymbol = symbol.endsWith('.JK') ? symbol : `${symbol}.JK`;
+            
+            // Menggunakan Yahoo Finance V8 API langsung via CORS Proxy publik
+            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(formattedSymbol)}?interval=${timeframe}&range=1y`;
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
 
-                    const latencyMs = Date.now() - startTime;
-                    if (!response.ok) throw new Error(`HTTP_${response.status}`);
+            const response = await fetch(proxyUrl, { signal: controller.signal, cache: 'no-store' });
+            clearTimeout(timeoutId);
 
-                    const json = await response.json();
-                    const result = json?.chart?.result?.[0];
-                    if (!result || !result.timestamp || !result.indicators?.quote?.[0]) {
-                        throw new Error('INVALID_PAYLOAD');
-                    }
+            const latencyMs = Date.now() - startTime;
+            if (!response.ok) throw new Error(`HTTP_${response.status}`);
 
-                    const quote = result.indicators.quote[0];
-                    const candles = [];
+            const json = await response.json();
+            const result = json?.chart?.result?.[0];
+            if (!result || !result.timestamp || !result.indicators?.quote?.[0]) {
+                throw new Error('INVALID_PAYLOAD');
+            }
 
-                    result.timestamp.forEach((ts, idx) => {
-                        const o = quote.open?.[idx], h = quote.high?.[idx],
-                              l = quote.low?.[idx], c = quote.close?.[idx],
-                              v = quote.volume?.[idx];
+            const quote = result.indicators.quote[0];
+            const candles = [];
 
-                        if ([o, h, l, c].every(Number.isFinite) && h >= l && o > 0 && c > 0) {
-                            candles.push({
-                                time: ts * 1000,
-                                open: o, high: h, low: l, close: c,
-                                volume: Number.isFinite(v) ? v : 0
-                            });
-                        }
+            result.timestamp.forEach((ts, idx) => {
+                const o = quote.open?.[idx], h = quote.high?.[idx],
+                      l = quote.low?.[idx], c = quote.close?.[idx],
+                      v = quote.volume?.[idx];
+
+                if ([o, h, l, c].every(Number.isFinite) && h >= l && o > 0 && c > 0) {
+                    candles.push({
+                        time: ts * 1000,
+                        open: o, high: h, low: l, close: c,
+                        volume: Number.isFinite(v) ? v : 0
                     });
-
-                    if (candles.length < 20) throw new Error('INSUFFICIENT_CANDLES');
-
-                    const lastCandle = candles[candles.length - 1];
-                    const dataAgeSec = Math.floor((Date.now() - lastCandle.time) / 1000);
-
-                    return {
-                        symbol: symbol,
-                        meta: result.meta || {},
-                        candles: candles,
-                        lastPrice: lastCandle.close,
-                        prevClose: candles[candles.length - 2].close,
-                        highPrice: lastCandle.high,
-                        lowPrice: lastCandle.low,
-                        openPrice: lastCandle.open,
-                        volumeShares: lastCandle.volume,
-                        dataAgeSec: dataAgeSec,
-                        latencyMs: latencyMs,
-                        status: 'VALID'
-                    };
-
-                } catch (err) {
-                    console.warn(`[LIVE_API] Gagal fetch data live untuk ${symbol}:`, err.message);
-                    return { symbol: symbol, status: 'INVALID', error: err.message };
-                } finally {
-                    activeRequestsMap.delete(reqKey);
                 }
-            })();
+            });
 
-            activeRequestsMap.set(reqKey, fetchPromise);
-            return fetchPromise;
+            if (candles.length < 20) throw new Error('INSUFFICIENT_CANDLES');
+
+            const lastCandle = candles[candles.length - 1];
+            const dataAgeSec = Math.floor((Date.now() - lastCandle.time) / 1000);
+
+            // Update Badge jika sukses
+            document.getElementById('dataModeBadge').innerText = '● LIVE API FEED READY';
+            document.getElementById('dataModeBadge').className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30';
+
+            return {
+                symbol: symbol,
+                meta: result.meta || {},
+                candles: candles,
+                lastPrice: lastCandle.close,
+                prevClose: candles[candles.length - 2] ? candles[candles.length - 2].close : lastCandle.open,
+                highPrice: lastCandle.high,
+                lowPrice: lastCandle.low,
+                openPrice: lastCandle.open,
+                volumeShares: lastCandle.volume,
+                dataAgeSec: dataAgeSec,
+                latencyMs: latencyMs,
+                status: 'VALID'
+            };
+
+        } catch (err) {
+            console.warn(`[LIVE_API] Gagal fetch data live untuk ${symbol}:`, err.message);
+            return { symbol: symbol, status: 'INVALID', error: err.message };
+        } finally {
+            activeRequestsMap.delete(reqKey);
         }
+    })();
+
+    activeRequestsMap.set(reqKey, fetchPromise);
+    return fetchPromise;
+}
 
         // Calculation Engine: RSI 14, MACD 12/26/9, ATR 14, MA20/MA50, RVOL
         function calculateIndicators(candles) {
