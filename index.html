@@ -586,6 +586,16 @@
             `).join('');
         }
 
+        // Format Tambahan Standar untuk Turnover
+        function formatTurnoverString(str) {
+            if (!str) return 'Rp 0.00B';
+            if (typeof str === 'string' && (str.endsWith('B') || str.endsWith('M'))) {
+                return str.startsWith('Rp') ? str : 'Rp ' + str;
+            }
+            const val = parseFloat(str);
+            return isNaN(val) ? 'Rp ' + str : 'Rp ' + val.toFixed(2) + 'B';
+        }
+
         function renderScreenerTable() {
             const tbody = document.getElementById('screenerTableBody');
             const filterSearch = (document.getElementById('screenerSearch').value || '').toUpperCase();
@@ -612,9 +622,12 @@
 
             tbody.innerHTML = filtered.map(symbol => {
                 const stock = STOCKS[symbol];
-                const slVal = stock.sl || Math.round(stock.price * 0.97);
+                
+                // Kalkulasi Dinamis Stop Loss & Lot untuk Screener
+                const atrVal = stock.atr || Math.round(stock.price * 0.02);
+                const slVal = stock.sl || Math.round(stock.price - (1.5 * atrVal));
                 const riskPerShare = Math.max(1, stock.price - slVal);
-                const riskBudget = capitalDefault * 0.01;
+                const riskBudget = capitalDefault * 0.01; // 1% dari 50JT = 500rb
                 const totalShares = Math.floor(riskBudget / riskPerShare);
                 const lots = Math.floor(totalShares / 100);
 
@@ -629,6 +642,8 @@
                 }
 
                 const probDisplay = stock.prob != null ? stock.prob.toFixed(1) + '%' : 'N/A';
+                const diff = stock.price - stock.prev;
+                const diffPct = stock.prev > 0 ? ((diff / stock.prev) * 100).toFixed(2) : '0.00';
 
                 return `
                     <tr class="hover:bg-slate-900/80 transition border-b border-slate-800/40">
@@ -638,12 +653,12 @@
                         </td>
                         <td class="p-3.5">
                             <div class="font-bold text-slate-200">Rp ${stock.price.toLocaleString('id-ID')}</div>
-                            <div class="text-[10px] ${stock.price >= stock.prev ? 'text-emerald-400' : 'text-rose-400'} font-semibold">
-                                ${stock.price >= stock.prev ? '+' : ''}${(stock.price - stock.prev).toLocaleString('id-ID')} (${(((stock.price - stock.prev)/stock.prev)*100).toFixed(2)}%)
+                            <div class="text-[10px] ${diff >= 0 ? 'text-emerald-400' : 'text-rose-400'} font-semibold">
+                                ${diff >= 0 ? '+' : ''}${diff.toLocaleString('id-ID')} (${diffPct >= 0 ? '+' : ''}${diffPct}%)
                             </div>
                         </td>
                         <td class="p-3.5 font-semibold text-slate-300">
-                            Rp ${stock.valTraded}
+                            ${formatTurnoverString(stock.valTraded)}
                         </td>
                         <td class="p-3.5 text-[10px] text-slate-400">
                             <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800">${stock.hardFilters}</span>
@@ -781,8 +796,8 @@
             s.volumeSma20=sma(vols,20);
             return s;
         }
-        function fmtBillion(x){ return (x/1e9).toLocaleString('id-ID',{maximumFractionDigits:2})+'B'; }
-        function fmtMillion(x){ return (x/1e6).toLocaleString('id-ID',{maximumFractionDigits:2})+'M'; }
+        function fmtBillion(x){ return (x/1e9).toFixed(2)+'B'; }
+        function fmtMillion(x){ return (x/1e6).toFixed(1)+'M'; }
 
         async function loadLiveData(symbol, silent=false){
             const tf=document.getElementById('timeframeSelect')?.value||'1D';
@@ -808,7 +823,6 @@
             const calcAtr = result.atr.at(-1);
             const calcVwap = result.vwap.at(-1);
 
-            // Dinamiskan Stop Loss dan TP berdasarkan harga live terbaru
             const livePrice = c.close;
             const calculatedATR = calcAtr != null ? Math.round(calcAtr) : Math.round(livePrice * 0.02);
             const liveSL = Math.round(livePrice - (1.5 * calculatedATR));
@@ -837,6 +851,7 @@
             }
             updateRiskCalculations();
             drawChart(symbol);
+            if(currentTab === 'screener') renderScreenerTable();
             return true;
         }
 
@@ -942,7 +957,7 @@
             document.getElementById('lastPrice').innerText = entryPrice.toLocaleString('id-ID');
             
             const diff = entryPrice - stock.prev;
-            const diffPct = ((diff / stock.prev) * 100).toFixed(2);
+            const diffPct = stock.prev > 0 ? ((diff / stock.prev) * 100).toFixed(2) : '0.00';
             const priceChangeEl = document.getElementById('priceChange');
             priceChangeEl.innerText = `${diff >= 0 ? '+' : ''}${diff.toLocaleString('id-ID')} (${diffPct >= 0 ? '+' : ''}${diffPct}%)`;
             priceChangeEl.className = diff >= 0 ? 'text-sm font-semibold text-emerald-400 mono' : 'text-sm font-semibold text-rose-400 mono';
@@ -952,7 +967,7 @@
             document.getElementById('lowPrice').innerText = stock.low.toLocaleString('id-ID');
             
             document.getElementById('volShares').innerText = stock.volShares;
-            document.getElementById('valTraded').innerText = stock.valTraded;
+            document.getElementById('valTraded').innerText = formatTurnoverString(stock.valTraded);
             document.getElementById('foreignNet').innerText = stock.foreignNet;
             document.getElementById('foreignNet').className = stock.foreignNet.startsWith('+') ? 'font-bold text-emerald-400 mt-0.5' : 'font-bold text-rose-400 mt-0.5';
 
