@@ -160,10 +160,10 @@
                             <span class="text-xs text-slate-400 font-medium">KERANGKA WAKTU:</span>
                             <select id="timeframeSelect" onchange="updateStockDesk()" class="bg-slate-950 text-white font-semibold text-xs rounded-xl px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-blue-500 transition">
                                 <option value="1m">1m</option>
-                                <option value="5m" selected>5m</option>
+                                <option value="5m">5m</option>
                                 <option value="15m">15m</option>
                                 <option value="1H">1H</option>
-                                <option value="1D">1D</option>
+                                <option value="1D" selected>1D</option>
                             </select>
 
                             <button id="btnRefresh" onclick="refreshData()" class="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 shadow-lg shadow-blue-600/20">
@@ -240,7 +240,7 @@
                         <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
                             <span class="text-[10px] text-slate-500 block">MACD (12,26,9)</span>
                             <span id="valMACD" class="font-extrabold text-emerald-400 text-sm">+18.4</span>
-                            <span id="macdStatus" class="text-[9px] text-emerald-400 block mt-0.5">HISTOGRAM MEMBESAR</span>
+                            <span id="macdStatus" class="text-[9px] text-emerald-400 block mt-0.5">HISTOGRAM: 0.0</span>
                         </div>
 
                         <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
@@ -501,9 +501,9 @@
         lucide.createIcons();
 
         const STOCKS = {
-            'BBRI': { name: 'Bank Rakyat Indonesia Tbk', price: 4850, prev: 4730, high: 4880, low: 4720, volShares: '85.4M', valTraded: '412.8B', foreignNet: '+48.2B', rsi: 64.2, macd: '+18.4', atr: 85, rvol: 2.4, vwap: 4810, obImbalance: 0.38, confluence: 78, prob: 64.2, sample: 486, hardFilters: 'Likuifitas OK, Spread OK, Normal', signal: 'PASS' },
+            'BBRI': { name: 'Bank Rakyat Indonesia Tbk', price: 3140, prev: 3150, high: 3180, low: 3120, volShares: '85.4M', valTraded: '412.8B', foreignNet: '+48.2B', rsi: 35.3, macd: '-35.6', atr: 83.5, rvol: 1.2, vwap: 3145, obImbalance: 0.38, confluence: 78, prob: 64.2, sample: 486, hardFilters: 'Likuifitas OK, Spread OK, Normal', signal: 'PASS' },
             'BBCA': { name: 'Bank Central Asia Tbk', price: 10150, prev: 10000, high: 10200, low: 9975, volShares: '42.1M', valTraded: '426.1B', foreignNet: '+82.5B', rsi: 68.5, macd: '+42.0', atr: 150, rvol: 1.8, vwap: 10080, obImbalance: 0.45, confluence: 84, prob: 68.0, sample: 520, hardFilters: 'Likuifitas OK, Spread OK, Normal', signal: 'PASS' },
-            'BMRI': { name: 'Bank Mandiri (Persero) Tbk', price: 7100, prev: 7000, high: 7150, low: 6975, volShares: '51.3M', valTraded: '362.4B', foreignNet: '+31.1B', rsi: 59.8, macd: '+12.1', atr: 110, rvol: 1.5, vwap: 7060, obImbalance: 0.22, confluence: 65, prob: 58.5, sample: 390, hardFilters: 'Likuifitas OK, Spread OK, Normal', signal: 'PASS' },
+            'BMRI': { name: 'Bank Mandiri (Persero) Tbk', price: 4020, prev: 4080, high: 4120, low: 4010, volShares: '51.3M', valTraded: '362.4B', foreignNet: '+31.1B', rsi: 35.3, macd: '-40.5', atr: 83.5, rvol: 1.5, vwap: 4040, obImbalance: 0.22, confluence: 65, prob: 58.5, sample: 390, hardFilters: 'Likuifitas OK, Spread OK, Normal', signal: 'PASS' },
             'BBNI': { name: 'Bank Negara Indonesia Tbk', price: 5450, prev: 5350, high: 5500, low: 5325, volShares: '38.2M', valTraded: '208.5B', foreignNet: '+18.4B', rsi: 61.2, macd: '+15.2', atr: 90, rvol: 1.6, vwap: 5420, obImbalance: 0.31, confluence: 70, prob: 61.0, sample: 410, hardFilters: 'Likuifitas OK, Spread OK, Normal', signal: 'PASS' },
             'TLKM': { name: 'Telkom Indonesia Tbk', price: 3020, prev: 3080, high: 3090, low: 3000, volShares: '98.2M', valTraded: '298.0B', foreignNet: '-24.8B', rsi: 41.2, macd: '-14.2', atr: 55, rvol: 0.9, vwap: 3040, obImbalance: -0.28, confluence: -35, prob: 38.0, sample: 310, hardFilters: 'Net Asing Negatif, Tren Melemah', signal: 'BLOCK' },
             'ASII': { name: 'Astra International Tbk', price: 5125, prev: 5100, high: 5175, low: 5075, volShares: '28.4M', valTraded: '145.2B', foreignNet: '-4.1B', rsi: 50.2, macd: '+2.1', atr: 80, rvol: 1.1, vwap: 5120, obImbalance: 0.05, confluence: 20, prob: 48.0, sample: 280, hardFilters: 'Netral, Menunggu Breakout', signal: 'WAIT' },
@@ -586,7 +586,6 @@
             `).join('');
         }
 
-        // Format Tambahan Standar untuk Turnover
         function formatTurnoverString(str) {
             if (!str) return 'Rp 0.00B';
             if (typeof str === 'string' && (str.endsWith('B') || str.endsWith('M'))) {
@@ -623,11 +622,10 @@
             tbody.innerHTML = filtered.map(symbol => {
                 const stock = STOCKS[symbol];
                 
-                // Kalkulasi Dinamis Stop Loss & Lot untuk Screener
                 const atrVal = stock.atr || Math.round(stock.price * 0.02);
                 const slVal = stock.sl || Math.round(stock.price - (1.5 * atrVal));
                 const riskPerShare = Math.max(1, stock.price - slVal);
-                const riskBudget = capitalDefault * 0.01; // 1% dari 50JT = 500rb
+                const riskBudget = capitalDefault * 0.01;
                 const totalShares = Math.floor(riskBudget / riskPerShare);
                 const lots = Math.floor(totalShares / 100);
 
@@ -788,14 +786,46 @@
         function calcVWAP(candles){
             let pv=0,v=0; return candles.map(c=>{const tp=(c.high+c.low+c.close)/3;pv+=tp*c.volume;v+=c.volume;return v?pv/v:null;});
         }
+
+        // Kalkulasi Presisi Lengkap MACD (12, 26, 9)
         function enrichSeries(s){
-            const closes=s.candles.map(c=>c.close), vols=s.candles.map(c=>c.volume);
-            s.ma20=sma(closes,20); s.ma50=sma(closes,50); s.rsi=rsi(closes,14); s.atr=atr(s.candles,14); s.vwap=calcVWAP(s.candles);
-            const e12=ema(closes,12),e26=ema(closes,26);
-            s.macd=e12.map((x,i)=>x!=null&&e26[i]!=null?x-e26[i]:null);
-            s.volumeSma20=sma(vols,20);
+            const closes = s.candles.map(c => c.close);
+            const vols = s.candles.map(c => c.volume);
+            
+            s.ma20 = sma(closes, 20);
+            s.ma50 = sma(closes, 50);
+            s.rsi = rsi(closes, 14);
+            s.atr = atr(s.candles, 14);
+            s.vwap = calcVWAP(s.candles);
+
+            const ema12 = ema(closes, 12);
+            const ema26 = ema(closes, 26);
+            
+            // 1. MACD Line (EMA12 - EMA26)
+            const macdLine = ema12.map((val, i) => (val != null && ema26[i] != null) ? val - ema26[i] : null);
+            
+            // 2. Signal Line (EMA 9 dari MACD Line)
+            const validMacd = macdLine.filter(v => v !== null);
+            const signalEma = ema(validMacd, 9);
+            
+            const signalLine = Array(macdLine.length).fill(null);
+            let sigIdx = 0;
+            for(let i = 0; i < macdLine.length; i++) {
+                if (macdLine[i] !== null) {
+                    signalLine[i] = signalEma[sigIdx];
+                    sigIdx++;
+                }
+            }
+
+            // 3. Histogram (MACD Line - Signal Line)
+            s.macdLine = macdLine;
+            s.macdSignal = signalLine;
+            s.macdHist = macdLine.map((val, i) => (val != null && signalLine[i] != null) ? val - signalLine[i] : null);
+
+            s.volumeSma20 = sma(vols, 20);
             return s;
         }
+
         function fmtBillion(x){ return (x/1e9).toFixed(2)+'B'; }
         function fmtMillion(x){ return (x/1e6).toFixed(1)+'M'; }
 
@@ -819,7 +849,8 @@
             const rv=avgVol?vol/avgVol:null;
 
             const calcRsi = result.rsi.at(-1);
-            const calcMacd = result.macd.at(-1);
+            const calcMacd = result.macdLine?.at(-1);
+            const calcHist = result.macdHist?.at(-1);
             const calcAtr = result.atr.at(-1);
             const calcVwap = result.vwap.at(-1);
 
@@ -835,6 +866,7 @@
                 volShares:fmtMillion(vol), valTraded:fmtBillion(turnover),
                 rsi: calcRsi != null ? parseFloat(calcRsi.toFixed(1)) : (old.rsi || 50),
                 macd: calcMacd != null ? (calcMacd >= 0 ? '+' : '') + calcMacd.toFixed(1) : (old.macd || '0'),
+                macdHist: calcHist != null ? (calcHist >= 0 ? '+' : '') + calcHist.toFixed(1) : '0',
                 atr: calculatedATR,
                 rvol: rv != null ? parseFloat(rv.toFixed(1)) : (old.rvol || 1.0),
                 vwap: calcVwap != null ? Math.round(calcVwap) : (old.vwap || livePrice),
@@ -973,6 +1005,7 @@
 
             document.getElementById('valRSI').innerText = stock.rsi;
             document.getElementById('valMACD').innerText = stock.macd;
+            document.getElementById('macdStatus').innerText = `HISTOGRAM: ${stock.macdHist || '0.0'}`;
             document.getElementById('valATR').innerText = stock.atr;
             document.getElementById('valRVOL').innerText = stock.rvol + 'x';
             document.getElementById('valVWAP').innerText = stock.vwap.toLocaleString('id-ID');
@@ -1067,7 +1100,8 @@
                 },
                 "derivedIndicators": {
                     "rsi14": stock.rsi,
-                    "macd": stock.macd,
+                    "macdLine": stock.macd,
+                    "macdHistogram": stock.macdHist,
                     "atr14": stock.atr,
                     "rvol": stock.rvol,
                     "vwap": stock.vwap,
